@@ -81,12 +81,17 @@ exports.getMyCounselorProfile = async (req, res) => {
     if (!user) return res.status(401).json({ error: "Not authenticated" });
     if (!user.isCounselor) {
       // Auto-enable counselor if allowlisted
-      const allow = (process.env.COUNSELOR_ALLOWLIST || "").split(/[\s,]+/).map(s => s.toLowerCase()).filter(Boolean);
+      const allow = (process.env.COUNSELOR_ALLOWLIST || "")
+        .split(/[\s,]+/)
+        .map((s) => s.toLowerCase())
+        .filter(Boolean);
       if (user.email && allow.includes(String(user.email).toLowerCase())) {
         user.isCounselor = true;
         await user.save();
       } else {
-        return res.status(403).json({ error: "Access denied: Not a counselor" });
+        return res
+          .status(403)
+          .json({ error: "Access denied: Not a counselor" });
       }
     }
     if (!user.email)
@@ -118,31 +123,181 @@ exports.getMyCounselorProfile = async (req, res) => {
   }
 };
 
+// GET /api/counselors/settings
+exports.getCounselorSettings = async (req, res) => {
+  try {
+    const user = await getCurrentUserFromCookie(req);
+    if (!user)
+      return res
+        .status(401)
+        .json({ error: "Not authenticated", code: "AUTH_REQUIRED" });
+    if (!user.isCounselor) {
+      return res.status(403).json({
+        error: "Access denied: Not a counselor",
+        code: "NOT_COUNSELOR",
+      });
+    }
+    if (!user.email)
+      return res
+        .status(400)
+        .json({ error: "Missing user email", code: "MISSING_EMAIL" });
+
+    const Counselor = require("../models/Counselor-model");
+    const counselor = await Counselor.findOne({
+      email: user.email.toLowerCase(),
+    });
+
+    if (!counselor) {
+      return res.status(404).json({
+        error: "Counselor profile not found",
+        code: "PROFILE_NOT_FOUND",
+      });
+    }
+
+    // Return settings from counselor model or default settings
+    const settings = {
+      notifications: counselor.settings?.notifications || {
+        emailNotifications: true,
+        smsNotifications: false,
+        pushNotifications: true,
+        appointmentReminders: true,
+        clientMessages: true,
+        systemUpdates: false,
+      },
+      privacy: counselor.settings?.privacy || {
+        profileVisibility: "public",
+        showOnlineStatus: true,
+        allowDirectBooking: true,
+        requireApproval: false,
+      },
+      availability: counselor.settings?.availability || {
+        workingDays: ["monday", "tuesday", "wednesday", "thursday", "friday"],
+        workingHours: {
+          start: "09:00",
+          end: "17:00",
+        },
+        timeZone: "Asia/Kolkata",
+        bufferTime: 15,
+      },
+      preferences: counselor.settings?.preferences || {
+        language: "english",
+        theme: "light",
+        autoSave: true,
+        sessionDuration: 60,
+        maxDailyAppointments: 8,
+      },
+      security: counselor.settings?.security || {
+        twoFactorAuth: false,
+        sessionTimeout: 30,
+        loginNotifications: true,
+      },
+    };
+
+    return res.status(200).json(settings);
+  } catch (e) {
+    console.error("getCounselorSettings failed:", e);
+    return res
+      .status(500)
+      .json({ error: "Failed to load settings", code: "SERVER_ERROR" });
+  }
+};
+
+// PUT /api/counselors/settings
+exports.updateCounselorSettings = async (req, res) => {
+  try {
+    const user = await getCurrentUserFromCookie(req);
+    if (!user)
+      return res
+        .status(401)
+        .json({ error: "Not authenticated", code: "AUTH_REQUIRED" });
+    if (!user.isCounselor) {
+      return res.status(403).json({
+        error: "Access denied: Not a counselor",
+        code: "NOT_COUNSELOR",
+      });
+    }
+    if (!user.email)
+      return res
+        .status(400)
+        .json({ error: "Missing user email", code: "MISSING_EMAIL" });
+
+    const Counselor = require("../models/Counselor-model");
+    const { broadcastCounselorUpdate } = require("../utils/socket");
+
+    const counselor = await Counselor.findOne({
+      email: user.email.toLowerCase(),
+    });
+    if (!counselor) {
+      return res.status(404).json({
+        error: "Counselor profile not found",
+        code: "PROFILE_NOT_FOUND",
+      });
+    }
+
+    // Update settings
+    counselor.settings = {
+      notifications:
+        req.body.notifications || counselor.settings?.notifications,
+      privacy: req.body.privacy || counselor.settings?.privacy,
+      availability: req.body.availability || counselor.settings?.availability,
+      preferences: req.body.preferences || counselor.settings?.preferences,
+      security: req.body.security || counselor.settings?.security,
+    };
+
+    await counselor.save();
+
+    // Broadcast update to connected clients
+    broadcastCounselorUpdate(counselor);
+
+    return res
+      .status(200)
+      .json({ success: true, message: "Settings updated successfully" });
+  } catch (e) {
+    console.error("updateCounselorSettings failed:", e);
+    return res
+      .status(500)
+      .json({ error: "Failed to update settings", code: "SERVER_ERROR" });
+  }
+};
+
 // PUT /api/counselors/me
 exports.updateMyCounselorProfile = async (req, res) => {
   try {
     const user = await getCurrentUserFromCookie(req);
-    if (!user) return res.status(401).json({ error: "Not authenticated", code: "AUTH_REQUIRED" });
+    if (!user)
+      return res
+        .status(401)
+        .json({ error: "Not authenticated", code: "AUTH_REQUIRED" });
     if (!user.isCounselor) {
-      const allow = (process.env.COUNSELOR_ALLOWLIST || "").split(/[\s,]+/).map(s => s.toLowerCase()).filter(Boolean);
+      const allow = (process.env.COUNSELOR_ALLOWLIST || "")
+        .split(/[\s,]+/)
+        .map((s) => s.toLowerCase())
+        .filter(Boolean);
       if (user.email && allow.includes(String(user.email).toLowerCase())) {
         user.isCounselor = true;
         await user.save();
       } else {
-        return res.status(403).json({ error: "Access denied: Not a counselor", code: "NOT_COUNSELOR" });
+        return res.status(403).json({
+          error: "Access denied: Not a counselor",
+          code: "NOT_COUNSELOR",
+        });
       }
     }
     if (!user.email)
-      return res.status(400).json({ error: "Missing user email", code: "MISSING_EMAIL" });
-    
+      return res
+        .status(400)
+        .json({ error: "Missing user email", code: "MISSING_EMAIL" });
+
     // Validate required fields
-    if (!req.body.name || req.body.name.trim() === '') {
-      return res.status(400).json({ error: "Name is required", code: "MISSING_NAME" });
+    if (!req.body.name || req.body.name.trim() === "") {
+      return res
+        .status(400)
+        .json({ error: "Name is required", code: "MISSING_NAME" });
     }
-    
+
     const Counselor = require("../models/Counselor-model");
     const { broadcastCounselorUpdate } = require("../utils/socket");
-    
+
     const allowed = new Set([
       "name",
       "title",
@@ -158,54 +313,60 @@ exports.updateMyCounselorProfile = async (req, res) => {
       "availability",
       "active",
     ]);
-    
+
     const updates = {};
     for (const k of Object.keys(req.body || {})) {
       if (!allowed.has(k)) continue;
-      
+
       // Prevent blob URLs from being stored
-      if ((k === 'image' || k === 'picture') && req.body[k] && req.body[k].startsWith('blob:')) {
+      if (
+        (k === "image" || k === "picture") &&
+        req.body[k] &&
+        req.body[k].startsWith("blob:")
+      ) {
         console.warn(`🚫 Preventing blob URL storage for ${k}:`, req.body[k]);
         continue; // Skip blob URLs
       }
-      
+
       // Validate price is a number
-      if (k === 'price' && isNaN(Number(req.body[k]))) {
-        return res.status(400).json({ error: "Price must be a number", code: "INVALID_PRICE" });
+      if (k === "price" && isNaN(Number(req.body[k]))) {
+        return res
+          .status(400)
+          .json({ error: "Price must be a number", code: "INVALID_PRICE" });
       }
-      
+
       // Validate prices object
-      if (k === 'prices') {
+      if (k === "prices") {
         const prices = req.body[k];
-        if (prices && typeof prices === 'object') {
+        if (prices && typeof prices === "object") {
           for (const type in prices) {
             if (prices[type] && isNaN(Number(prices[type]))) {
-              return res.status(400).json({ 
-                error: `Price for ${type} must be a number`, 
-                code: "INVALID_PRICE_TYPE" 
+              return res.status(400).json({
+                error: `Price for ${type} must be a number`,
+                code: "INVALID_PRICE_TYPE",
               });
             }
           }
         }
       }
-      
+
       updates[k] = req.body[k];
     }
-    
+
     // Add timestamp for tracking
     updates.updatedAt = new Date();
-    
+
     const c = await Counselor.findOneAndUpdate(
       { email: user.email.toLowerCase() },
       { $set: updates },
       { new: true, upsert: true }
     );
-    
+
     // Get user's Google profile image
     const User = require("../models/User-model");
     const userRecord = await User.findOne({ email: user.email.toLowerCase() });
     const googleProfileImage = userRecord?.picture || "";
-    
+
     // Broadcast real-time update
     const updateData = {
       id: c._id?.toString(),
@@ -215,9 +376,10 @@ exports.updateMyCounselorProfile = async (req, res) => {
       price: `₹${Number(c.price || 0)}/session`,
       prices: c.prices || {},
       currency: c.currency || "INR",
-      sessionTypes: Array.isArray(c.sessionTypes) && c.sessionTypes.length
-        ? c.sessionTypes
-        : ["Video Call", "Phone Call", "Chat"],
+      sessionTypes:
+        Array.isArray(c.sessionTypes) && c.sessionTypes.length
+          ? c.sessionTypes
+          : ["Video Call", "Phone Call", "Chat"],
       specializations: c.specializations || [],
       languages: c.languages || ["English"],
       rating: c.rating || 4.8,
@@ -226,11 +388,11 @@ exports.updateMyCounselorProfile = async (req, res) => {
       bio: c.bio || "",
       availability: c.availability || [],
       active: c.active !== false,
-      updatedAt: c.updatedAt
+      updatedAt: c.updatedAt,
     };
-    
+
     broadcastCounselorUpdate(updateData);
-    
+
     return res.status(200).json(c);
   } catch (e) {
     console.error("updateMyCounselorProfile failed:", e);
@@ -414,8 +576,24 @@ exports.getCounselorStats = async (req, res) => {
     // Date helpers
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+    const endOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23,
+      59,
+      59,
+      999
+    );
 
     const counselorEmail = user.email;
 
@@ -436,10 +614,15 @@ exports.getCounselorStats = async (req, res) => {
     }).lean();
 
     // Calculate monthly earnings from bookings
-    const monthlyEarnings = monthlyBookings.reduce((total, booking) => total + (booking.price || 0), 0);
+    const monthlyEarnings = monthlyBookings.reduce(
+      (total, booking) => total + (booking.price || 0),
+      0
+    );
 
     // Count unique clients
-    const uniqueClients = await Booking.distinct("googleId", { counselorEmail });
+    const uniqueClients = await Booking.distinct("googleId", {
+      counselorEmail,
+    });
 
     // Count active clients (had booking in last 30 days)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -448,13 +631,19 @@ exports.getCounselorStats = async (req, res) => {
       scheduledAt: { $gte: thirtyDaysAgo },
     });
 
+    // Get total earnings from counselor profile (updated in real-time)
+    const totalEarnings = counselorProfile?.earnings?.total || 0;
+    const trackedMonthlyEarnings = counselorProfile?.earnings?.thisMonth || monthlyEarnings;
+
     const stats = {
       totalClients: uniqueClients.length,
       activeClients: activeClients.length,
       todayAppointments: todayBookings,
-      monthlyEarnings: monthlyEarnings,
+      monthlyEarnings: trackedMonthlyEarnings,
+      totalEarnings: totalEarnings,
       averageRating: counselorProfile?.rating || 0,
-      totalSessions: totalBookings,
+      totalSessions: counselorProfile?.completedSessions || totalBookings,
+      lastUpdated: counselorProfile?.earnings?.lastUpdated || new Date(),
     };
 
     return res.status(200).json(stats);
@@ -537,20 +726,22 @@ exports.listCounselors = async (_req, res) => {
   try {
     const Counselor = require("../models/Counselor-model");
     const User = require("../models/User-model");
-    
+
     const items = await Counselor.find({ active: true }).sort({
       updatedAt: -1, // Sort by most recently updated first
       createdAt: -1,
     });
-    
+
     // Get Google profile images for all counselors
-    const counselorEmails = items.map(c => c.email?.toLowerCase()).filter(Boolean);
-    const users = await User.find({ 
+    const counselorEmails = items
+      .map((c) => c.email?.toLowerCase())
+      .filter(Boolean);
+    const users = await User.find({
       email: { $in: counselorEmails },
-      isCounselor: true 
-    }).select('email picture');
+      isCounselor: true,
+    }).select("email picture");
     const userImageMap = {};
-    users.forEach(user => {
+    users.forEach((user) => {
       if (user.email) {
         userImageMap[user.email.toLowerCase()] = user.picture;
       }
@@ -576,7 +767,7 @@ exports.listCounselors = async (_req, res) => {
       bio: c.bio || "",
       availability: c.availability || [],
       active: c.active !== false,
-      updatedAt: c.updatedAt
+      updatedAt: c.updatedAt,
     }));
     return res.status(200).json(list);
   } catch (e) {
@@ -589,8 +780,9 @@ exports.listCounselors = async (_req, res) => {
 exports.getCounselorClients = async (req, res) => {
   try {
     const user = await getCurrentUserFromCookie(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!user.isCounselor) return res.status(403).json({ error: 'Access denied: Not a counselor' });
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+    if (!user.isCounselor)
+      return res.status(403).json({ error: "Access denied: Not a counselor" });
     const Booking = require("../models/Booking-model");
     const UserModel = require("../models/User-model");
     const bookings = await Booking.find({ counselorEmail: user.email })
@@ -605,81 +797,135 @@ exports.getCounselorClients = async (req, res) => {
           googleId: key,
           totalSessions: 1,
           lastSession: b.scheduledAt || b.createdAt,
-          status: b.status === 'completed' ? 'active' : (b.status || 'pending'),
+          status: b.status === "completed" ? "active" : b.status || "pending",
         });
       } else {
         const c = map.get(key);
         c.totalSessions += 1;
         if ((b.scheduledAt || b.createdAt) > c.lastSession) {
           c.lastSession = b.scheduledAt || b.createdAt;
-          c.status = b.status === 'completed' ? 'active' : (b.status || c.status);
+          c.status = b.status === "completed" ? "active" : b.status || c.status;
         }
       }
     }
     // Enrich with user profile info
     const clientIds = Array.from(map.keys());
-    const users = await UserModel.find({ googleId: { $in: clientIds } }).select('googleId name email').lean();
-    const info = new Map(users.map(u => [u.googleId, u]));
-    const clients = Array.from(map.values()).map(c => ({
+    const users = await UserModel.find({ googleId: { $in: clientIds } })
+      .select(
+        "googleId name email picture phone age bio parentPhone parentEmail"
+      )
+      .lean();
+    const info = new Map(users.map((u) => [u.googleId, u]));
+    const clients = Array.from(map.values()).map((c) => ({
       id: c.googleId,
-      name: info.get(c.googleId)?.name || 'Client',
-      email: info.get(c.googleId)?.email || '',
+      googleId: c.googleId,
+      name: info.get(c.googleId)?.name || "Client",
+      email: info.get(c.googleId)?.email || "",
+      picture: info.get(c.googleId)?.picture || null,
+      phone: info.get(c.googleId)?.phone || null,
+      age: info.get(c.googleId)?.age || null,
+      bio: info.get(c.googleId)?.bio || "",
+      parentPhone: info.get(c.googleId)?.parentPhone || null,
+      parentEmail: info.get(c.googleId)?.parentEmail || null,
       totalSessions: c.totalSessions,
       lastSession: c.lastSession,
       status: c.status,
-      riskLevel: 'LOW',
+      riskLevel: "LOW",
     }));
     return res.status(200).json(clients);
   } catch (e) {
-    console.error('getCounselorClients failed:', e);
-    return res.status(500).json({ error: 'Failed to load clients' });
+    console.error("getCounselorClients failed:", e);
+    return res.status(500).json({ error: "Failed to load clients" });
   }
 };
 
-// GET /api/counselors/conversations - recent messages for counselor
+// GET /api/counselors/conversations - recent conversations list (aggregated by room)
 exports.getCounselorConversations = async (req, res) => {
   try {
     const user = await getCurrentUserFromCookie(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!user.isCounselor) return res.status(403).json({ error: 'Access denied: Not a counselor' });
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+    if (!user.isCounselor)
+      return res.status(403).json({ error: "Access denied: Not a counselor" });
+
+    const Booking = require("../models/Booking-model");
     const ChatMessage = require("../models/ChatMessage-model");
-    const items = await ChatMessage.find({ counselorEmail: user.email })
-      .sort({ createdAt: -1 })
-      .limit(50)
+
+    // Get recent bookings for this counselor that have a roomId
+    const recentBookings = await Booking.find({
+      counselorEmail: user.email,
+      roomId: { $exists: true, $ne: null },
+    })
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .limit(100)
       .lean();
-    return res.status(200).json(items);
+
+    const roomIds = Array.from(
+      new Set(recentBookings.map((b) => b.roomId).filter(Boolean))
+    );
+    if (roomIds.length === 0) return res.status(200).json([]);
+
+    // Aggregate last message per roomId
+    const pipeline = [
+      { $match: { roomId: { $in: roomIds } } },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: "$roomId",
+          lastMessage: { $first: "$content" },
+          lastSenderId: { $first: "$senderId" },
+          lastSenderRole: { $first: "$senderRole" },
+          lastCreatedAt: { $first: "$createdAt" },
+        },
+      },
+      { $sort: { lastCreatedAt: -1 } },
+      { $limit: 50 },
+    ];
+
+    const rooms = await ChatMessage.aggregate(pipeline);
+
+    // Map to UI-friendly conversation objects
+    const conversations = rooms.map((r) => ({
+      id: r._id,
+      clientName: r.lastSenderRole === "student" ? "Client" : "You",
+      lastMessage: { content: r.lastMessage, createdAt: r.lastCreatedAt },
+      unreadCount: 0,
+    }));
+
+    return res.status(200).json(conversations);
   } catch (e) {
-    console.error('getCounselorConversations failed:', e);
-    return res.status(500).json({ error: 'Failed to load conversations' });
+    console.error("getCounselorConversations failed:", e);
+    return res.status(500).json({ error: "Failed to load conversations" });
   }
 };
-
-// Aliases/endpoints expected by CounselorDashboard UI
-exports.getCounselorSettings = async (req, res) => exports.getMyCounselorProfile(req, res);
-exports.updateCounselorSettings = async (req, res) => exports.updateMyCounselorProfile(req, res);
 
 // GET /api/counselors/appointments - list counselor bookings across states
 exports.getCounselorAppointments = async (req, res) => {
   try {
     const user = await getCurrentUserFromCookie(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!user.isCounselor) return res.status(403).json({ error: 'Access denied: Not a counselor' });
-    const Booking = require('../models/Booking-model');
-    const UserModel = require('../models/User-model');
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+    if (!user.isCounselor)
+      return res.status(403).json({ error: "Access denied: Not a counselor" });
+
+    const Booking = require("../models/Booking-model");
+    const UserModel = require("../models/User-model");
     const items = await Booking.find({ counselorEmail: user.email })
       .sort({ scheduledAt: -1, createdAt: -1 })
       .limit(200)
       .lean();
 
     // Attach client names/emails
-    const ids = Array.from(new Set(items.map(b => b.googleId).filter(Boolean)));
-    const users = await UserModel.find({ googleId: { $in: ids } }).select('googleId name email').lean();
-    const map = new Map(users.map(u => [u.googleId, u]));
+    const ids = Array.from(
+      new Set(items.map((b) => b.googleId).filter(Boolean))
+    );
+    const users = await UserModel.find({ googleId: { $in: ids } })
+      .select("googleId name email")
+      .lean();
+    const map = new Map(users.map((u) => [u.googleId, u]));
 
-    const list = items.map(b => ({
+    const list = items.map((b) => ({
       id: b._id?.toString(),
-      clientName: map.get(b.googleId)?.name || 'Client',
-      clientEmail: map.get(b.googleId)?.email || '',
+      clientName: map.get(b.googleId)?.name || "Client",
+      clientEmail: map.get(b.googleId)?.email || "",
       date: b.date,
       time: b.time,
       status: b.status,
@@ -693,8 +939,85 @@ exports.getCounselorAppointments = async (req, res) => {
 
     return res.status(200).json(list);
   } catch (e) {
-    console.error('getCounselorAppointments failed:', e);
-    return res.status(500).json({ error: 'Failed to load appointments' });
+    console.error("getCounselorAppointments failed:", e);
+    return res.status(500).json({ error: "Failed to load appointments" });
+  }
+};
+
+// GET /api/conversations/:id/messages - fetch messages for a conversation (roomId)
+exports.getConversationMessages = async (req, res) => {
+  try {
+    const user = await getCurrentUserFromCookie(req);
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+    const roomId = req.params.id;
+    if (!roomId)
+      return res.status(400).json({ error: "Missing conversation id" });
+
+    const ChatMessage = require("../models/ChatMessage-model");
+    const items = await ChatMessage.find({ roomId })
+      .sort({ createdAt: 1 })
+      .limit(500)
+      .lean();
+
+    const list = items.map((m) => ({
+      id: m._id?.toString(),
+      conversationId: m.roomId,
+      senderId: m.senderId,
+      senderRole: m.senderRole,
+      content: m.content,
+      createdAt: m.createdAt,
+    }));
+
+    return res.status(200).json(list);
+  } catch (e) {
+    console.error("getConversationMessages failed:", e);
+    return res.status(500).json({ error: "Failed to load messages" });
+  }
+};
+
+// POST /api/conversations/:id/messages - create a new message in a conversation (roomId)
+exports.postConversationMessage = async (req, res) => {
+  try {
+    const user = await getCurrentUserFromCookie(req);
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+    const roomId = req.params.id;
+    const { content } = req.body || {};
+    if (!roomId)
+      return res.status(400).json({ error: "Missing conversation id" });
+    if (!content || String(content).trim() === "")
+      return res.status(400).json({ error: "Message content required" });
+
+    const ChatMessage = require("../models/ChatMessage-model");
+    const doc = await ChatMessage.create({
+      roomId,
+      senderId: user.isCounselor ? user.email : user.googleId,
+      senderRole: user.isCounselor ? "counselor" : "student",
+      content: String(content).trim(),
+    });
+
+    const message = {
+      id: doc._id.toString(),
+      conversationId: doc.roomId,
+      senderId: doc.senderId,
+      senderRole: doc.senderRole,
+      content: doc.content,
+      createdAt: doc.createdAt,
+      senderName: user.name || (user.isCounselor ? "Counselor" : "User"),
+    };
+
+    // Emit socket event so clients update in real-time
+    try {
+      const { getIO } = require("../utils/socket");
+      const io = getIO();
+      io.emit("message:new", message);
+    } catch (err) {
+      console.warn("Socket emit failed (message:new):", err?.message || err);
+    }
+
+    return res.status(201).json(message);
+  } catch (e) {
+    console.error("postConversationMessage failed:", e);
+    return res.status(500).json({ error: "Failed to send message" });
   }
 };
 
@@ -702,23 +1025,36 @@ exports.getCounselorAppointments = async (req, res) => {
 exports.getCounselorEarnings = async (req, res) => {
   try {
     const user = await getCurrentUserFromCookie(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!user.isCounselor) return res.status(403).json({ error: 'Access denied: Not a counselor' });
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+    if (!user.isCounselor)
+      return res.status(403).json({ error: "Access denied: Not a counselor" });
 
-    const Booking = require('../models/Booking-model');
+    const Booking = require("../models/Booking-model");
+    const Counselor = require("../models/Counselor-model");
+    
     const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
     const startOfWeek = new Date(startOfDay); // simple 7-day window
     startOfWeek.setDate(startOfWeek.getDate() - 6);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     // Consider earnings from confirmed/in_session/completed
-    const paidStatuses = ['confirmed', 'in_session', 'completed'];
+    const paidStatuses = ["confirmed", "in_session", "completed"];
 
     const all = await Booking.find({
       counselorEmail: user.email,
       status: { $in: paidStatuses },
-    }).sort({ createdAt: -1 }).lean();
+    })
+      .sort({ createdAt: -1 })
+      .lean();
 
     const inRange = (d, start) => {
       const dt = new Date(d || now);
@@ -727,34 +1063,59 @@ exports.getCounselorEarnings = async (req, res) => {
 
     const sum = (list) => list.reduce((acc, b) => acc + (b.price || 0), 0);
 
-    const todayList = all.filter(b => inRange(b.createdAt, startOfDay));
-    const weekList = all.filter(b => inRange(b.createdAt, startOfWeek));
-    const monthList = all.filter(b => inRange(b.createdAt, startOfMonth));
+    const todayList = all.filter((b) => inRange(b.createdAt, startOfDay));
+    const weekList = all.filter((b) => inRange(b.createdAt, startOfWeek));
+    const monthList = all.filter((b) => inRange(b.createdAt, startOfMonth));
+
+    // Breakdown by session type (chat, call, video)
+    const byType = {
+      chat: { count: 0, earnings: 0 },
+      call: { count: 0, earnings: 0 },
+      video: { count: 0, earnings: 0 },
+    };
+
+    all.forEach((b) => {
+      const type = (b.sessionType || "video").toLowerCase();
+      if (byType[type]) {
+        byType[type].count += 1;
+        byType[type].earnings += b.price || 0;
+      }
+    });
+
+    // Get counselor's tracked earnings from model
+    const counselor = await Counselor.findOne({ email: user.email }).lean();
+    const trackedEarnings = counselor?.earnings || {};
 
     const summary = {
       today: sum(todayList),
       thisWeek: sum(weekList),
-      thisMonth: sum(monthList),
-      total: sum(all),
+      thisMonth: trackedEarnings.thisMonth || sum(monthList),
+      total: trackedEarnings.total || sum(all),
       pendingPayouts: 0,
-      completedSessions: all.filter(b => b.status === 'completed').length,
+      completedSessions: counselor?.completedSessions || all.filter((b) => b.status === "completed").length,
+      byType,
+      lastUpdated: trackedEarnings.lastUpdated || now,
     };
 
-    const transactions = all.slice(0, 20).map(b => ({
+    const transactions = all.slice(0, 20).map((b) => ({
       id: b._id.toString(),
       amount: b.price || 0,
-      currency: b.currency || 'INR',
+      currency: b.currency || "INR",
       status: b.status,
       date: b.createdAt,
+      createdAt: b.createdAt,
       sessionType: b.sessionType,
       clientId: b.googleId,
+      clientName: b.userName || "Anonymous",
       counselorEmail: b.counselorEmail,
+      description: `${b.sessionType || 'video'} session with ${b.userName || 'client'}`,
+      type: "payment",
     }));
 
     return res.status(200).json({ summary, transactions });
   } catch (e) {
-    console.error('getCounselorEarnings failed:', e);
-    return res.status(500).json({ error: 'Failed to load earnings' });
+    console.error("getCounselorEarnings failed:", e);
+    return res.status(500).json({ error: "Failed to load earnings" });
   }
 };
 
@@ -797,7 +1158,7 @@ exports.getCounselorResources = async (_req, res) => {
     ];
     return res.status(200).json(items);
   } catch (e) {
-    console.error('getCounselorResources failed:', e);
-    return res.status(500).json({ error: 'Failed to load resources' });
+    console.error("getCounselorResources failed:", e);
+    return res.status(500).json({ error: "Failed to load resources" });
   }
 };

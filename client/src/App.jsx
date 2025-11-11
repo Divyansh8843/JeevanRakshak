@@ -18,6 +18,7 @@ import Statistics from "./components/Statistics";
 import CrisisSupport from "./components/CrisisSupport";
 import Dashboard from "./pages/Dashboard";
 import CounselorDashboard from "./pages/CounselorDashboard";
+import StudentSession from "./pages/StudentSession";
 import Profile from "./pages/Profile";
 // Redirect-based OAuth flow (server-side)
 import { Toaster, toast } from "react-hot-toast";
@@ -33,7 +34,7 @@ function App() {
 
   const onStartAuth = useCallback(() => {
     // Use redirect flow handled by the server
-    window.location.href = "/api/auth/google/redirect";
+    window.location.href = `${import.meta.env.VITE_SERVER_URL || 'http://localhost:8080'}/api/auth/google/redirect`;
   }, []);
 
   // PWA install prompt handler (capture and expose a manual trigger)
@@ -249,7 +250,7 @@ function App() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/auth/me", { credentials: "include" });
+        const res = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:8080'}/api/auth/me`, { credentials: "include" });
         if (res.ok) {
           const me = await res.json();
           setIsAuthenticated(true);
@@ -270,7 +271,7 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", {
+      await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:8080'}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
         headers: { "Accept": "application/json" },
@@ -356,6 +357,14 @@ function App() {
                   onLogout={handleLogout}
                   navigateTo={navigateTo}
                 />
+              </Protected>
+            }
+          />
+          <Route
+            path="/session/:bookingId"
+            element={
+              <Protected>
+                <StudentSession user={user} />
               </Protected>
             }
           />

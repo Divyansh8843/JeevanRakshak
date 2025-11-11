@@ -45,7 +45,7 @@ const Profile = ({ user, onEdit }) => {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(`/api/user/profile?googleId=${user.googleId}`);
+        const res = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:8080'}/api/user/profile?googleId=${user.googleId}`);
         if (!res.ok) throw new Error("Failed to fetch user info");
         const data = await res.json();
         setFormData({
@@ -149,7 +149,7 @@ const Profile = ({ user, onEdit }) => {
               .filter(Boolean),
       };
 
-      const res = await fetch("/api/counselors/me", {
+      const res = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:8080'}/api/counselors/me`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -204,7 +204,7 @@ const Profile = ({ user, onEdit }) => {
       try {
         setCounselorLoading(true);
         setCounselorError("");
-        const res = await fetch("/api/counselors/me", {
+        const res = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:8080'}/api/counselors/me`, {
           credentials: "include",
         });
         if (!res.ok) {
@@ -306,7 +306,7 @@ const Profile = ({ user, onEdit }) => {
       // Update profile (ensure we don't save blob URLs)
       const profilePictureUrl = pictureUrl && !pictureUrl.startsWith('blob:') ? pictureUrl : '';
       
-      const res = await fetch("/api/user/profile", {
+      const res = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:8080'}/api/user/profile`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -340,7 +340,6 @@ const Profile = ({ user, onEdit }) => {
       toast.error(err?.message || "Failed to update profile");
     } finally {
       setLoading(false);
-      setImageFile(null);
     }
   };
 

@@ -17,14 +17,30 @@ router.put("/counselors/me", userController.updateMyCounselorProfile);
 router.get("/counselors/stats", userController.getCounselorStats);
 router.get("/counselors/activity", userController.getCounselorActivity);
 router.get("/counselors/clients", userController.getCounselorClients);
-router.get("/counselors/conversations", userController.getCounselorConversations);
+router.get(
+  "/counselors/conversations",
+  userController.getCounselorConversations
+);
 router.get("/counselors/settings", userController.getCounselorSettings);
 router.put("/counselors/settings", userController.updateCounselorSettings);
 router.get("/counselors/appointments", userController.getCounselorAppointments);
 router.get("/counselors/earnings", userController.getCounselorEarnings);
 router.get("/counselors/resources", userController.getCounselorResources);
+// Messages (conversation) endpoints
+router.get(
+  "/conversations/:id/messages",
+  userController.getConversationMessages
+);
+router.post(
+  "/conversations/:id/messages",
+  userController.postConversationMessage
+);
 router.post("/notify/parent", notifyController.sendParentNotification);
-router.post("/notify/parent/email", notifyController.sendParentEmailNotification);
+router.post(
+  "/notify/parent/email",
+  notifyController.sendParentEmailNotification
+);
 router.post("/notify/parent/sms", notifyController.sendParentSMSNotification);
+router.get("/notify/email/preview", notifyController.previewEmail);
 
 module.exports = router;

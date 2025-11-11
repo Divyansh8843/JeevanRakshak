@@ -32,6 +32,43 @@ const CounselorSchema = new mongoose.Schema(
       lastUpdated: { type: Date, default: Date.now }
     },
     completedSessions: { type: Number, default: 0 },
+    settings: {
+      notifications: {
+        emailNotifications: { type: Boolean, default: true },
+        smsNotifications: { type: Boolean, default: false },
+        pushNotifications: { type: Boolean, default: true },
+        appointmentReminders: { type: Boolean, default: true },
+        clientMessages: { type: Boolean, default: true },
+        systemUpdates: { type: Boolean, default: false }
+      },
+      privacy: {
+        profileVisibility: { type: String, default: 'public' },
+        showOnlineStatus: { type: Boolean, default: true },
+        allowDirectBooking: { type: Boolean, default: true },
+        requireApproval: { type: Boolean, default: false }
+      },
+      availability: {
+        workingDays: { type: [String], default: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] },
+        workingHours: {
+          start: { type: String, default: '09:00' },
+          end: { type: String, default: '17:00' }
+        },
+        timeZone: { type: String, default: 'Asia/Kolkata' },
+        bufferTime: { type: Number, default: 15 }
+      },
+      preferences: {
+        language: { type: String, default: 'english' },
+        theme: { type: String, default: 'light' },
+        autoSave: { type: Boolean, default: true },
+        sessionDuration: { type: Number, default: 60 },
+        maxDailyAppointments: { type: Number, default: 8 }
+      },
+      security: {
+        twoFactorAuth: { type: Boolean, default: false },
+        sessionTimeout: { type: Number, default: 30 },
+        loginNotifications: { type: Boolean, default: true }
+      }
+    },
   },
   { timestamps: true }
 );

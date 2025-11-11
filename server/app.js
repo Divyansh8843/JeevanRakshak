@@ -1,6 +1,7 @@
 require("dotenv").config();
 // Prefer IPv4 to avoid potential IPv6 socket issues on Windows (wsarecv aborted)
-require("dns").setDefaultResultOrder && require("dns").setDefaultResultOrder("ipv4first");
+require("dns").setDefaultResultOrder &&
+  require("dns").setDefaultResultOrder("ipv4first");
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -21,11 +22,11 @@ app.use(
   cors({
     origin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
     credentials: true,
-  }),
+  })
 );
 // Stripe webhook needs raw body, but other routes can use JSON
 app.use((req, res, next) => {
-  if (req.originalUrl === '/api/payments/webhook') {
+  if (req.originalUrl === "/api/payments/webhook") {
     next();
   } else {
     express.json()(req, res, next);
@@ -99,5 +100,9 @@ initSocket(server);
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   // Start background scheduler (non-blocking)
-  try { startScheduler(); } catch (e) { console.warn('Scheduler failed to start:', e?.message || e); }
+  try {
+    startScheduler();
+  } catch (e) {
+    console.warn("Scheduler failed to start:", e?.message || e);
+  }
 });

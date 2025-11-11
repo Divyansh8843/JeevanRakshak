@@ -40,6 +40,7 @@ import {
   Home,
   Menu,
   ArrowRight,
+  Video,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
@@ -63,7 +64,7 @@ const ENABLE_WS = !(
   String(import.meta.env.VITE_ENABLE_WS || "true").toLowerCase() === "false"
 );
 
-const Dashboard = ({ user, onLogout, navigateTo }) => {
+export default function Dashboard({ user, onLogout, navigateTo }) {
   // Persist active tab across refresh and deep link via ?tab=
   const [activeTab, setActiveTab] = useState(() => {
     try {
@@ -109,6 +110,17 @@ const Dashboard = ({ user, onLogout, navigateTo }) => {
     { id: "settings", name: "Settings", icon: Settings },
   ];
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    try {
+      const v = localStorage.getItem("userSidebarOpen");
+      return v !== "0"; // default open
+    } catch (_) {
+      return true;
+    }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("userSidebarOpen", sidebarOpen ? "1" : "0"); } catch (_) {}
+  }, [sidebarOpen]);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -132,79 +144,109 @@ const Dashboard = ({ user, onLogout, navigateTo }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-neutral-900 dark:text-neutral-100 pt-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Mobile top bar */}
-        <div className="lg:hidden mb-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-lg font-semibold">Dashboard</h1>
+    <div className="fixed inset-0 bg-gray-50 dark:bg-neutral-900 dark:text-neutral-100 flex flex-col">
+      {/* Fixed Header Spacer */}
+      <div className="h-16 lg:h-20 flex-shrink-0"></div>
+      
+      <div className="flex-1 flex overflow-hidden">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-6 lg:gap-8 h-full">
+          {/* Mobile top bar */}
+          <div className="lg:hidden fixed top-16 left-0 right-0 bg-white dark:bg-neutral-800 border-b border-gray-200 dark:border-neutral-700 z-30 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <h1 className="text-lg font-semibold">Dashboard</h1>
+              <button
+                aria-label="Toggle navigation"
+                className="p-2 rounded-lg border border-gray-200 hover:bg-gray-100 dark:border-neutral-600 dark:hover:bg-neutral-700"
+                onClick={() => setMobileNavOpen((s) => !s)}
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+            </div>
+            {/* Horizontal scrollable nav */}
+            <div className={`${mobileNavOpen ? "block" : "hidden"} mt-3`}>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 -mx-2 px-2">
+                {menuItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveTab(item.id);
+                        setMobileNavOpen(false);
+                      }}
+                      className={`flex items-center gap-2 px-3 py-2 whitespace-nowrap rounded-lg border text-sm flex-shrink-0 ${
+                        isActive
+                          ? "bg-emerald-600 text-white border-emerald-600"
+                          : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-neutral-700 dark:text-neutral-200 dark:border-neutral-600"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop sidebar toggle button */}
+          <div className="hidden lg:block fixed top-20 left-4 z-40">
             <button
-              aria-label="Toggle navigation"
-              className="p-2 rounded-lg border border-gray-200 hover:bg-gray-100"
-              onClick={() => setMobileNavOpen((s) => !s)}
+              aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+              title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+              className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-100 dark:bg-neutral-800 dark:border-neutral-600 dark:hover:bg-neutral-700 shadow"
+              onClick={() => setSidebarOpen((s) => !s)}
             >
               <Menu className="h-5 w-5" />
             </button>
           </div>
-          {/* Horizontal scrollable nav */}
-          <div className={`${mobileNavOpen ? "block" : "hidden"} mt-3`}>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 -mx-2 px-2">
-              {menuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setActiveTab(item.id);
-                      setMobileNavOpen(false);
-                    }}
-                    className={`flex items-center gap-2 px-3 py-2 whitespace-nowrap rounded-lg border text-sm flex-shrink-0 ${
-                      isActive
-                        ? "bg-emerald-600 text-white border-emerald-600"
-                        : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.name}
-                  </button>
-                );
-              })}
+
+          {/* Fixed Sidebar (desktop only) */}
+          {sidebarOpen && (
+            <aside className="w-64 flex-shrink-0 hidden lg:block">
+              <div className="h-full py-6">
+                <nav className="space-y-2">
+                  {menuItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setActiveTab(item.id)}
+                        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                          activeTab === item.id
+                            ? "bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400"
+                            : "text-gray-600 hover:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                        }`}
+                      >
+                        <Icon className="h-5 w-5" />
+                        <span className="font-medium">{item.name}</span>
+                      </button>
+                    );
+                  })}
+                </nav>
+              </div>
+            </aside>
+          )}
+
+          {/* Main Scrollable Content - Prevents scroll chaining */}
+          <main 
+            className="flex-1 overflow-y-scroll nice-scroll mt-24 lg:mt-0"
+            onWheel={(e) => e.stopPropagation()}
+            style={{ 
+              overscrollBehavior: 'contain',
+              WebkitOverflowScrolling: 'touch'
+            }}
+          >
+            <div className="min-h-full py-6">
+              {renderContent()}
             </div>
-          </div>
-        </div>
-
-        <div className="flex gap-8 min-h-0">
-          {/* Sidebar (desktop only) */}
-          <div className="w-64 flex-shrink-0 hidden lg:block">
-            <nav className="space-y-2">
-              {menuItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveTab(item.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
-                      activeTab === item.id
-                        ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                        : "text-gray-600 hover:bg-gray-100"
-                    }`}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span className="font-medium">{item.name}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-
-          {/* Main Content */}
-          <div className="flex-1 min-h-0">{renderContent()}</div>
+          </main>
         </div>
       </div>
     </div>
   );
-};
+}
 
 const OverviewContent = ({ user }) => {
   const [loading, setLoading] = useState(true);
@@ -518,6 +560,10 @@ const OverviewContent = ({ user }) => {
                   const mood = it?.data?.mood ?? "-";
                   const energy = it?.data?.energy ?? "-";
                   const risk = it?.risk || "LOW";
+                  const notes = (it?.data?.notes || "").trim();
+                  const activities = Array.isArray(it?.data?.activities)
+                    ? it.data.activities
+                    : [];
                   return (
                     <div
                       key={it._id}
@@ -544,6 +590,20 @@ const OverviewContent = ({ user }) => {
                             {risk}
                           </span>
                         </p>
+                        {notes && (
+                          <p className="text-xs text-gray-600 mt-1">
+                            <span className="font-medium text-gray-700">Notes:</span>{" "}
+                            {notes.length > 160
+                              ? notes.slice(0, 160) + "…"
+                              : notes}
+                          </p>
+                        )}
+                        {activities && activities.length > 0 && (
+                          <p className="text-xs text-gray-600 mt-1">
+                            <span className="font-medium text-gray-700">Activities:</span>{" "}
+                            {activities.join(", ")}
+                          </p>
+                        )}
                       </div>
                     </div>
                   );
@@ -737,14 +797,34 @@ const CheckinContent = ({ user }) => {
           activities: checkinData.activities,
         },
       };
-      const res = await fetch("/api/analyze", {
+      const res = await fetch(`${SERVER_URL}/api/risk/checkin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error("Failed to analyze data");
+      // If ANY error from server, block success and show clear message.
+      if (!res.ok) {
+        let msg = "AI Risk service unavailable. Please try again later.";
+        try {
+          const errJson = await res.json().catch(() => ({}));
+          if (res.status === 503 && errJson?.code === "ML_UNAVAILABLE") {
+            msg = "AI Risk service unavailable. Please try again later.";
+          } else if (errJson?.error) {
+            msg = `AI Risk service error: ${errJson.error}`;
+          } else if (res.status >= 500) {
+            msg = "AI Risk service error. Analysis not generated.";
+          } else {
+            msg = "Failed to analyze data. Please try again.";
+          }
+        } catch (_) {}
+        setSubmitError(msg);
+        toast.error(msg);
+        return; // Do not proceed to success path
+      }
       const json = await res.json();
-      setAnalysis({ risk: json.risk, tips: json.tips || [] });
+      // Map in-house label to legacy UI chip
+      const legacy = json.risk || (json.riskLabel === 'RISK_HIGH' ? 'HIGH' : (json.riskLabel === 'SAFE' ? 'LOW' : 'MEDIUM'));
+      setAnalysis({ risk: legacy, tips: json.tips || [] });
       // Optional: notify parent via SMS/Email if configured in Settings
       try {
         const parentPhone = localStorage.getItem("parentPhone") || "";
@@ -1357,7 +1437,7 @@ const AIChatContent = () => {
       const history = [...messages, { type: "user", content }].map((m) =>
         m.type === "user" ? `User: ${m.content}` : `Assistant: ${m.content}`
       );
-      const res = await fetch("/api/chatbot", {
+      const res = await fetch(`${SERVER_URL}/api/chatbot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: history }),
@@ -1412,7 +1492,7 @@ const AIChatContent = () => {
         </p>
       </div>
 
-      <div className="flex-1 min-h-0 flex gap-6 flex-col lg:flex-row overscroll-contain">
+      <div className="flex-1 min-h-0 flex gap-6 flex-col lg:flex-row-reverse overscroll-contain">
         {/* Chat Interface */}
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden overscroll-contain">
           <Card className="flex flex-col h-[80vh] lg:h-[90vh] overflow-hidden overscroll-contain">
@@ -1685,6 +1765,9 @@ const HumanCounselorContent = ({ user }) => {
   const [errorAppointments, setErrorAppointments] = useState("");
   const [socketReady, setSocketReady] = useState(false);
   const [imageErrors, setImageErrors] = useState(new Set());
+  // Next session countdown banner state
+  const [nextSession, setNextSession] = useState(null); // { id, counselor, date, time, status }
+  const [nextCountdown, setNextCountdown] = useState("");
 
   // Helper function to generate avatar URL
   const generateAvatarUrl = (name, size = 150) => {
@@ -2098,9 +2181,14 @@ const HumanCounselorContent = ({ user }) => {
             counselor: b.counselorName || "Unknown Counselor",
             date: b.date,
             time: b.time,
+            // Preserve backend booking status for accurate UI logic
+            rawStatus: String(b.status || "").toLowerCase(),
             status: (() => {
               const s = String(b.status || "").toLowerCase();
-              return s === "completed" ? "completed" : "upcoming";
+              if (s === "completed") return "completed";
+              if (s === "in_session") return "in_session";
+              if (s === "confirmed") return "confirmed";
+              return "upcoming";
             })(),
             type: (() => {
               const sessionType = (b.sessionType || "").toLowerCase();
@@ -2204,49 +2292,70 @@ const HumanCounselorContent = ({ user }) => {
     });
     socket.on("booking:join_request", async (payload) => {
       try {
-        toast.success("Your counselor invited you to join the session");
-        const id = payload?.id;
-        if (!id) return;
-        // Auto-accept join to streamline UX
-        const res = await fetch(`${SERVER_URL}/api/bookings/${encodeURIComponent(id)}/accept-join`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({})
+        toast.success("Your counselor is ready to start the session!", {
+          duration: 6000,
+          icon: "📞",
         });
-        if (res.ok) {
-          const data = await res.json().catch(() => ({}));
-          const joinUrl = data?.joinUrl || payload?.joinUrl;
-          if (joinUrl) {
-            window.open(joinUrl, '_blank');
-          }
-          // Ensure appointment status refresh
-          loadAppointments();
-          setActiveView('appointments');
-        }
+        const id = payload?.id || payload?.bookingId;
+        if (!id) return;
+        
+        // Update appointment to show join request status
+        setAppointments((prev) =>
+          prev.map((a) =>
+            a.id === id
+              ? {
+                  ...a,
+                  status: "join_requested",
+                  joinRequestData: payload,
+                  rawStatus: "confirmed", // Keep original status
+                }
+              : a
+          )
+        );
+        
+        // Switch to appointments view to show the accept button
+        setActiveView("appointments");
+        
+        // Refresh appointments to ensure data is current
+        loadAppointments();
       } catch (_) {}
     });
     socket.on("appointment:updated", async (u) => {
       if (!u?.id) return;
       const isCompleted = String(u.status || "").toLowerCase() === "completed";
       const mappedStatus = isCompleted ? "completed" : "upcoming";
-      setAppointments((prev) => prev.map((a) => a.id === u.id ? { ...a, status: mappedStatus } : a));
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === u.id ? { ...a, status: mappedStatus } : a))
+      );
       try {
         if (isCompleted) {
           // Lightweight feedback prompt
-          const want = window.confirm("Session completed. Would you like to give a quick rating?");
+          const want = window.confirm(
+            "Session completed. Would you like to give a quick rating?"
+          );
           if (want) {
             let ratingStr = window.prompt("Rate your session (1-5):", "5");
             if (ratingStr != null) {
-              const rating = Math.max(1, Math.min(5, parseInt(ratingStr, 10) || 5));
+              const rating = Math.max(
+                1,
+                Math.min(5, parseInt(ratingStr, 10) || 5)
+              );
               const comment = window.prompt("Any feedback? (optional)", "");
               try {
-                const res = await fetch(`/api/bookings/${encodeURIComponent(u.id)}/feedback`, {
-                  method: 'POST',
-                  credentials: 'include',
-                  headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                  body: JSON.stringify({ rating, comment })
-                });
+                const res = await fetch(
+                  `${SERVER_URL}/api/bookings/${encodeURIComponent(
+                    u.id
+                  )}/feedback`,
+                  {
+                    method: "POST",
+                    credentials: "include",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Accept: "application/json",
+                    },
+                    body: JSON.stringify({ rating, comment }),
+                  }
+                );
                 if (res.ok) {
                   toast.success("Thanks for your feedback!");
                 }
@@ -2280,9 +2389,9 @@ const HumanCounselorContent = ({ user }) => {
       (async () => {
         try {
           const res = await fetch(
-            `${
-              import.meta.env.VITE_SERVER_URL || "http://localhost:8080"
-            }/api/bookings?googleId=${encodeURIComponent(user.googleId)}`
+            `${SERVER_URL}/api/bookings?googleId=${encodeURIComponent(
+              user.googleId
+            )}`
           );
           if (res.ok) {
             const items = await res.json();
@@ -2395,15 +2504,18 @@ const HumanCounselorContent = ({ user }) => {
         cancelUrl: `${window.location.origin}/dashboard?payment=cancel&tab=human-counselor`,
       };
 
-      const res = await fetch("/api/payments/create-checkout-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
+      const res = await fetch(
+        `${SERVER_URL}/api/payments/create-checkout-session`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify(payload),
+          credentials: "include",
+        }
+      );
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
@@ -3073,72 +3185,451 @@ const HumanCounselorContent = ({ user }) => {
     </div>
   );
 
-  const renderAppointments = () => (
-    <div className="space-y-4 md:space-y-6">
-      <div>
-        <h3 className="text-lg md:text-xl font-semibold text-gray-900">
-          My Appointments
-        </h3>
-        <p className="text-sm md:text-base text-gray-600">
-          Manage your counseling sessions
-        </p>
-      </div>
+  const renderAppointments = () => {
+    return (
+      <div className="space-y-4 md:space-y-6">
+        <div>
+          <h3 className="text-lg md:text-xl font-semibold text-gray-900">
+            My Appointments
+          </h3>
+          <p className="text-sm md:text-base text-gray-600">
+            Manage your counseling sessions
+          </p>
+        </div>
 
-      {/* Loading / Error / Empty states */}
-      {loadingAppointments && (
-        <div className="border border-gray-200 rounded-lg p-6 bg-white">
-          <div className="animate-pulse space-y-3">
-            <div className="h-4 bg-gray-200 rounded w-1/3" />
-            <div className="h-3 bg-gray-200 rounded w-2/3" />
-            <div className="h-3 bg-gray-200 rounded w-1/2" />
-          </div>
-        </div>
-      )}
-      {!!errorAppointments && !loadingAppointments && (
-        <div className="border border-red-200 bg-red-50 text-red-700 text-sm rounded-lg p-3">
-          {errorAppointments}
-        </div>
-      )}
-      {!loadingAppointments &&
-        !errorAppointments &&
-        appointments.length === 0 && (
-          <div className="border border-gray-200 rounded-lg p-6 bg-white text-gray-600">
-            You don't have any appointments yet. Book a session from the Browse
-            tab.
+        {nextSession && (
+          <div className="border-2 border-emerald-300 bg-emerald-50 rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="text-sm md:text-base text-emerald-900">
+              <span className="font-semibold">
+                Session{" "}
+                {String(nextSession.status) === "in_session"
+                  ? "in progress"
+                  : "starting soon"}
+              </span>
+              {` with ${nextSession.counselor} • ${nextSession.date} ${nextSession.time}`}
+              {nextCountdown && nextCountdown !== "live" && (
+                <span className="ml-2 text-emerald-800">
+                  (starts in {nextCountdown})
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  try {
+                    const path = `/session/${encodeURIComponent(
+                      nextSession.id
+                    )}`;
+                    if (window?.history?.pushState) {
+                      window.history.pushState({}, "", path);
+                      window.dispatchEvent(new PopStateEvent("popstate"));
+                    } else {
+                      window.location.assign(path);
+                    }
+                  } catch (_) {
+                    window.location.assign(
+                      `/session/${encodeURIComponent(nextSession.id)}`
+                    );
+                  }
+                }}
+                className="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
+              >
+                Open Session Page
+              </button>
+            </div>
           </div>
         )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        {/* Upcoming Appointments - Mobile Responsive */}
-        <Card className="shadow-lg border-0">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base md:text-lg flex items-center">
-              <Calendar className="h-5 w-5 mr-2 text-emerald-600" />
-              Upcoming Sessions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 md:space-y-4">
-              {appointments
-                .filter((apt) => apt.status === "upcoming")
-                .map((appointment) => {
-                  const appointmentDate = new Date(
-                    `${appointment.date}T${appointment.time || "09:00"}`
-                  );
-                  const isToday =
-                    appointmentDate.toDateString() ===
-                    new Date().toDateString();
-                  const isSoon =
-                    appointmentDate.getTime() - Date.now() < 60 * 60 * 1000; // Within 1 hour
+        {/* Loading / Error / Empty states */}
+        {loadingAppointments && (
+          <div className="border border-gray-200 rounded-lg p-6 bg-white">
+            <div className="animate-pulse space-y-3">
+              <div className="h-4 bg-gray-200 rounded w-1/3" />
+              <div className="h-3 bg-gray-200 rounded w-2/3" />
+              <div className="h-3 bg-gray-200 rounded w-1/2" />
+            </div>
+          </div>
+        )}
+        {!!errorAppointments && !loadingAppointments && (
+          <div className="border border-red-200 bg-red-50 text-red-700 text-sm rounded-lg p-3">
+            {errorAppointments}
+          </div>
+        )}
+        {!loadingAppointments &&
+          !errorAppointments &&
+          appointments.length === 0 && (
+            <div className="border border-gray-200 rounded-lg p-6 bg-white text-gray-600">
+              You don't have any appointments yet. Book a session from the
+              Browse tab.
+            </div>
+          )}
 
-                  return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          {/* Upcoming Appointments - Mobile Responsive */}
+          <Card className="shadow-lg border-0">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base md:text-lg flex items-center">
+                <Calendar className="h-5 w-5 mr-2 text-emerald-600" />
+                Upcoming Sessions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 md:space-y-4">
+                {appointments
+                  .filter((apt) => ["upcoming","confirmed","join_requested"].includes(String(apt.status)))
+                  .map((appointment) => {
+                    const appointmentDate = new Date(
+                      `${appointment.date}T${appointment.time || "09:00"}`
+                    );
+                    const isToday =
+                      appointmentDate.toDateString() ===
+                      new Date().toDateString();
+                    const isSoon =
+                      appointmentDate.getTime() - Date.now() < 60 * 60 * 1000; // Within 1 hour
+
+                    return (
+                      <div
+                        key={appointment.id}
+                        className={`border-2 rounded-lg p-3 md:p-4 transition-all ${
+                          isToday
+                            ? "border-emerald-300 bg-emerald-50"
+                            : "border-gray-200 bg-white"
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-3">
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-medium text-gray-900 text-sm md:text-base truncate">
+                              {appointment.counselor}
+                            </h4>
+                            <p className="text-xs md:text-sm text-gray-600">
+                              {appointment.specialization}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isSoon && (
+                              <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full">
+                                Starting Soon
+                              </span>
+                            )}
+                            <span
+                              className={`px-2 py-1 text-xs rounded-full ${
+                                String(appointment.status) === "in_session"
+                                  ? "bg-emerald-600 text-white"
+                                  : "bg-green-100 text-green-700"
+                              }`}
+                            >
+                              {String(appointment.status) === "in_session"
+                                ? "in session"
+                                : appointment.status}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs md:text-sm text-gray-600 mb-3">
+                          <div className="flex items-center">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            <span>{appointment.date}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <Clock className="h-3 w-3 mr-1" />
+                            <span>{appointment.time}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <MessageSquare className="h-3 w-3 mr-1" />
+                            <span>{appointment.type}</span>
+                          </div>
+                        </div>
+
+                        {/* Join Request Alert - Show when counselor sends join request */}
+                        {appointment.status === "join_requested" && appointment.joinRequestData && (
+                          <div className="mb-3 p-3 bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-300 rounded-lg animate-pulse">
+                            <div className="flex items-center gap-2 mb-2">
+                              <PhoneCall className="h-5 w-5 text-emerald-600 animate-bounce" />
+                              <p className="font-semibold text-emerald-900">
+                                📞 Counselor is ready to start your {appointment.type} session!
+                              </p>
+                            </div>
+                            <Button
+                              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 text-base shadow-lg"
+                              onClick={async () => {
+                                try {
+                                  // Accept the join request
+                                  const res = await fetch(
+                                    `${SERVER_URL}/api/bookings/${encodeURIComponent(
+                                      appointment.id
+                                    )}/accept-join`,
+                                    {
+                                      method: "POST",
+                                      credentials: "include",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                        Accept: "application/json",
+                                      },
+                                      body: JSON.stringify({}),
+                                    }
+                                  );
+                                  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                                  const data = await res.json().catch(() => ({}));
+                                  const joinUrl = data?.joinUrl || appointment.joinRequestData?.joinUrl;
+                                  
+                                  if (joinUrl) {
+                                    // Open session based on type
+                                    window.open(joinUrl, "_blank");
+                                    toast.success("Session starting...");
+                                    
+                                    // Update status
+                                    setAppointments((prev) =>
+                                      prev.map((a) =>
+                                        a.id === appointment.id
+                                          ? { ...a, status: "in_session" }
+                                          : a
+                                      )
+                                    );
+                                  } else {
+                                    toast.error("Join link not available");
+                                  }
+                                } catch (e) {
+                                  console.error("Accept join failed:", e);
+                                  toast.error("Failed to join session");
+                                }
+                              }}
+                            >
+                              <div className="flex items-center justify-center gap-2">
+                                {appointment.type === "Video Call" && <Video className="h-5 w-5" />}
+                                {appointment.type === "Phone Call" && <PhoneCall className="h-5 w-5" />}
+                                {appointment.type === "Chat" && <MessageSquare className="h-5 w-5" />}
+                                <span>Accept & Join {appointment.type}</span>
+                              </div>
+                            </Button>
+                          </div>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full sm:flex-1 text-xs md:text-sm"
+                            onClick={async () => {
+                              try {
+                                const newDate = window.prompt(
+                                  "Enter new date (YYYY-MM-DD):",
+                                  appointment.date
+                                );
+                                if (!newDate) return;
+                                const newTime = window.prompt(
+                                  "Enter new time (HH:MM):",
+                                  appointment.time
+                                );
+                                if (!newTime) return;
+                                const res = await fetch(
+                                  `${SERVER_URL}/api/bookings/${encodeURIComponent(
+                                    appointment.id
+                                  )}/reschedule`,
+                                  {
+                                    method: "POST",
+                                    credentials: "include",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                      Accept: "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      date: newDate,
+                                      time: newTime,
+                                    }),
+                                  }
+                                );
+                                if (!res.ok) {
+                                  const txt = await res.text().catch(() => "");
+                                  console.error(
+                                    "Reschedule failed",
+                                    res.status,
+                                    txt
+                                  );
+                                  toast.error("Reschedule failed");
+                                  return;
+                                }
+                                toast.success("Rescheduled");
+                                // refresh appointments
+                                loadAppointments();
+                              } catch (e) {
+                                console.error("Reschedule error", e);
+                                toast.error("Reschedule failed");
+                              }
+                            }}
+                          >
+                            Reschedule
+                          </Button>
+                          {appointment.joinUrl && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full sm:flex-1 text-xs md:text-sm"
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(
+                                    String(appointment.joinUrl)
+                                  );
+                                  toast.success("Session link copied");
+                                } catch (e) {
+                                  console.error("Copy failed:", e);
+                                  toast.error("Failed to copy link");
+                                }
+                              }}
+                            >
+                              Copy Link
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            className="w-full sm:flex-1 bg-emerald-600 hover:bg-emerald-700 text-xs md:text-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
+                            disabled={
+                              !["confirmed", "in_session"].includes(
+                                String(appointment.status)
+                              )
+                            }
+                            onClick={async () => {
+                              try {
+                                // If we already have a valid link, open it
+                                const openUrl = (urlStr) => {
+                                  try {
+                                    const url = new URL(urlStr);
+                                    if (
+                                      url.protocol === "http:" ||
+                                      url.protocol === "https:"
+                                    ) {
+                                      window.open(
+                                        urlStr,
+                                        "_blank",
+                                        "noopener,noreferrer,width=1200,height=800"
+                                      );
+                                      toast.success(
+                                        "Opening session in new window..."
+                                      );
+                                    } else {
+                                      throw new Error("Invalid URL protocol");
+                                    }
+                                  } catch (err) {
+                                    console.error("Invalid session URL:", err);
+                                    toast.error(
+                                      "Invalid session link. Please contact support."
+                                    );
+                                  }
+                                };
+
+                                if (appointment.joinUrl) {
+                                  return openUrl(appointment.joinUrl);
+                                }
+
+                                // Otherwise, request join from backend which ensures joinUrl
+                                const res = await fetch(
+                                  `${SERVER_URL}/api/bookings/${encodeURIComponent(
+                                    appointment.id
+                                  )}/join`,
+                                  {
+                                    method: "POST",
+                                    credentials: "include",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                      Accept: "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      acceptJoinRequest: true,
+                                    }),
+                                  }
+                                );
+                                if (!res.ok)
+                                  throw new Error(`HTTP ${res.status}`);
+                                const data = await res.json().catch(() => ({}));
+                                const url = data?.joinUrl;
+                                if (url) {
+                                  openUrl(url);
+                                } else {
+                                  toast.error(
+                                    "Join link not available yet. Please try again shortly."
+                                  );
+                                }
+                              } catch (e) {
+                                console.error("Failed to join session:", e);
+                                toast.error("Failed to start/join the session");
+                              }
+                            }}
+                          >
+                            <div className="flex items-center justify-center space-x-1">
+                              <ExternalLink className="h-3 w-3" />
+                              <span>Join Session</span>
+                            </div>
+                          </Button>
+                          {["confirmed", "in_session"].includes(
+                            String(appointment.status)
+                          ) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full sm:flex-1 text-xs md:text-sm"
+                              onClick={() => {
+                                try {
+                                  const path = `/session/${encodeURIComponent(
+                                    appointment.id
+                                  )}`;
+                                  // Navigate within SPA
+                                  if (window?.history?.pushState) {
+                                    window.history.pushState({}, "", path);
+                                    window.dispatchEvent(
+                                      new PopStateEvent("popstate")
+                                    );
+                                  } else {
+                                    window.location.assign(path);
+                                  }
+                                } catch (_) {
+                                  window.location.assign(
+                                    `/session/${encodeURIComponent(
+                                      appointment.id
+                                    )}`
+                                  );
+                                }
+                              }}
+                            >
+                              <div className="flex items-center justify-center space-x-1">
+                                <ExternalLink className="h-3 w-3" />
+                                <span>Open Session Page</span>
+                              </div>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                {appointments.filter((apt) => apt.status === "upcoming")
+                  .length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-sm">No upcoming sessions</p>
+                    <p className="text-xs mt-1">
+                      Book a session to get started
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Past Appointments - Mobile Responsive */}
+          <Card className="shadow-lg border-0">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base md:text-lg flex items-center">
+                <Clock className="h-5 w-5 mr-2 text-gray-600" />
+                Session History
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 md:space-y-4">
+                {appointments
+                  .filter((apt) => apt.status === "completed")
+                  .map((appointment) => (
                     <div
                       key={appointment.id}
-                      className={`border-2 rounded-lg p-3 md:p-4 transition-all ${
-                        isToday
-                          ? "border-emerald-300 bg-emerald-50"
-                          : "border-gray-200 bg-white"
-                      }`}
+                      className="border border-gray-200 rounded-lg p-3 md:p-4 bg-gray-50"
                     >
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-3">
                         <div className="min-w-0 flex-1">
@@ -3149,16 +3640,9 @@ const HumanCounselorContent = ({ user }) => {
                             {appointment.specialization}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {isSoon && (
-                            <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full">
-                              Starting Soon
-                            </span>
-                          )}
-                          <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                            {appointment.status}
-                          </span>
-                        </div>
+                        <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full self-start">
+                          {appointment.status}
+                        </span>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs md:text-sm text-gray-600 mb-3">
@@ -3182,180 +3666,50 @@ const HumanCounselorContent = ({ user }) => {
                           variant="outline"
                           className="w-full sm:flex-1 text-xs md:text-sm"
                         >
-                          Reschedule
+                          View Notes
                         </Button>
                         <Button
                           size="sm"
-                          className="w-full sm:flex-1 bg-emerald-600 hover:bg-emerald-700 text-xs md:text-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
-                          disabled={
-                            !appointment.joinUrl ||
-                            appointment.status !== "upcoming"
-                          }
+                          variant="outline"
+                          className="w-full sm:flex-1 text-xs md:text-sm"
                           onClick={() => {
-                            if (appointment.joinUrl) {
-                              console.log(
-                                "Joining session:",
-                                appointment.joinUrl
-                              );
-
-                              // Validate URL before opening
-                              try {
-                                const url = new URL(appointment.joinUrl);
-                                if (
-                                  url.protocol === "http:" ||
-                                  url.protocol === "https:"
-                                ) {
-                                  window.open(
-                                    appointment.joinUrl,
-                                    "_blank",
-                                    "noopener,noreferrer,width=1200,height=800"
-                                  );
-
-                                  // Show success message
-                                  toast.success(
-                                    "Opening session in new window..."
-                                  );
-                                } else {
-                                  throw new Error("Invalid URL protocol");
-                                }
-                              } catch (error) {
-                                console.error("Invalid session URL:", error);
-                                toast.error(
-                                  "Invalid session link. Please contact support."
-                                );
-                              }
-                            } else {
-                              toast.info(
-                                "Session link not yet available. Please wait for counselor confirmation."
-                              );
+                            // Pre-fill booking with same counselor
+                            const counselor = counselors.find(
+                              (c) => c.name === appointment.counselor
+                            );
+                            if (counselor) {
+                              setSelectedCounselor(counselor);
+                              setSelectedSessionType("");
+                              setSelectedDate("");
+                              setSelectedTime("");
+                              setBookingStep(1);
+                              setActiveView("booking");
                             }
                           }}
                         >
-                          {appointment.joinUrl ? (
-                            <div className="flex items-center justify-center space-x-1">
-                              <ExternalLink className="h-3 w-3" />
-                              <span>Join Session</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-center space-x-1">
-                              <Clock className="h-3 w-3" />
-                              <span>Awaiting Link</span>
-                            </div>
-                          )}
+                          Book Again
                         </Button>
                       </div>
                     </div>
-                  );
-                })}
+                  ))}
 
-              {appointments.filter((apt) => apt.status === "upcoming")
-                .length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-sm">No upcoming sessions</p>
-                  <p className="text-xs mt-1">Book a session to get started</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Past Appointments - Mobile Responsive */}
-        <Card className="shadow-lg border-0">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base md:text-lg flex items-center">
-              <Clock className="h-5 w-5 mr-2 text-gray-600" />
-              Session History
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 md:space-y-4">
-              {appointments
-                .filter((apt) => apt.status === "completed")
-                .map((appointment) => (
-                  <div
-                    key={appointment.id}
-                    className="border border-gray-200 rounded-lg p-3 md:p-4 bg-gray-50"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-3">
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-medium text-gray-900 text-sm md:text-base truncate">
-                          {appointment.counselor}
-                        </h4>
-                        <p className="text-xs md:text-sm text-gray-600">
-                          {appointment.specialization}
-                        </p>
-                      </div>
-                      <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full self-start">
-                        {appointment.status}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs md:text-sm text-gray-600 mb-3">
-                      <div className="flex items-center">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        <span>{appointment.date}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Clock className="h-3 w-3 mr-1" />
-                        <span>{appointment.time}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <MessageSquare className="h-3 w-3 mr-1" />
-                        <span>{appointment.type}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full sm:flex-1 text-xs md:text-sm"
-                      >
-                        View Notes
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full sm:flex-1 text-xs md:text-sm"
-                        onClick={() => {
-                          // Pre-fill booking with same counselor
-                          const counselor = counselors.find(
-                            (c) => c.name === appointment.counselor
-                          );
-                          if (counselor) {
-                            setSelectedCounselor(counselor);
-                            setSelectedSessionType("");
-                            setSelectedDate("");
-                            setSelectedTime("");
-                            setBookingStep(1);
-                            setActiveView("booking");
-                          }
-                        }}
-                      >
-                        Book Again
-                      </Button>
-                    </div>
+                {appointments.filter((apt) => apt.status === "completed")
+                  .length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <Clock className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-sm">No completed sessions yet</p>
+                    <p className="text-xs mt-1">
+                      Your session history will appear here
+                    </p>
                   </div>
-                ))}
-
-              {appointments.filter((apt) => apt.status === "completed")
-                .length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <Clock className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-sm">No completed sessions yet</p>
-                  <p className="text-xs mt-1">
-                    Your session history will appear here
-                  </p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
-  );
-
+    );
+  };
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Mobile-responsive header */}
@@ -4293,5 +4647,3 @@ const SettingsContent = ({ user }) => {
     </div>
   );
 };
-
-export default Dashboard;

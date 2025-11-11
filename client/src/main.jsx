@@ -14,24 +14,17 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <BrowserRouter>
       <App />
     </BrowserRouter>
   </React.StrictMode>
 );
 
-// Register service worker for PWA install and offline support (production only)
-const enableSwInDev = String(import.meta?.env?.VITE_ENABLE_SW_DEV || "false").toLowerCase() === "true";
-if ((import.meta?.env?.PROD || enableSwInDev) && "serviceWorker" in navigator) {
+// Register service worker for PWA install and offline support
+if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then((reg) => {
-        // eslint-disable-next-line no-console
-        console.info("Service worker registered:", reg?.scope || "/");
-      })
-      .catch((err) => {
-        console.error("Service worker registration failed:", err);
-      });
+    navigator.serviceWorker.register("/sw.js").catch((err) => {
+      console.error("Service worker registration failed:", err);
+    });
   });
 }

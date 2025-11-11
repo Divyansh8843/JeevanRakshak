@@ -143,6 +143,15 @@
   background: linear-gradient(180deg, #10b981, #059669); /* emerald-500 -> emerald-600 */
 }
 
+/* Hide scrollbar for mobile navigation */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 .grid-pattern {
   background-image: linear-gradient(
       rgba(21, 128, 61, 0.15) 1px,

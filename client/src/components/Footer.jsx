@@ -182,20 +182,6 @@ const Footer = () => {
             </div>
 
             {/* Newsletter Signup */}
-            <div className="flex items-center space-x-2">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="bg-background/10 border border-background/20 rounded-lg px-4 py-2 text-background placeholder-background/60 focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-primary text-primary-foreground px-6 py-2 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
-              >
-                Subscribe
-              </motion.button>
-            </div>
           </div>
         </motion.div>
 

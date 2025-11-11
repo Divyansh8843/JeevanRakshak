@@ -16,6 +16,9 @@ const {
   CLIENT_ORIGIN,
 } = process.env;
 
+// Project branding
+const PROJECT_NAME = process.env.PROJECT_NAME || 'JeevanRakshak';
+
 // Enhanced logging for notifications
 const logNotification = (type, recipient, status, details = {}) => {
   const timestamp = new Date().toISOString();
@@ -62,7 +65,7 @@ function getTransport() {
 function buildAppointmentMessage(payload) {
   const { userName, counselorName, date, time, type } = payload;
   return (
-    `JeevanRakshak Update\n` +
+    `${PROJECT_NAME} Update\n` +
     `Student: ${userName || '-'}\n` +
     `Counselor: ${counselorName || '-'}\n` +
     `When: ${date || '-'} ${time || ''}\n` +
@@ -75,7 +78,7 @@ function buildReportMessage(payload) {
   const { userName, risk, tips = [] } = payload;
   const tipsLine = Array.isArray(tips) && tips.length ? `\nTips: ${tips.slice(0,3).join('; ')}` : '';
   return (
-    `JeevanRakshak Report\n` +
+    `${PROJECT_NAME} Report\n` +
     `Student: ${userName || '-'}\n` +
     `AI Risk: ${risk || 'LOW'}${tipsLine}`
   );
@@ -117,7 +120,10 @@ function buildProfessionalEmailHtml(type, data = {}) {
       
       <p style="color: #374151; margin: 25px 0; font-size: 16px; line-height: 1.6;">
         We will provide a brief summary after the session. If you have any questions or concerns, please don't hesitate to contact us.
-      </p>`;
+      </p>
+      ${CLIENT_ORIGIN ? `<div style="text-align:center; margin-top: 20px;">
+        <a href="${CLIENT_ORIGIN}/dashboard?tab=human-counselor&view=appointments" style="display:inline-block; background:#10b981; color:#ffffff; padding:12px 18px; border-radius:8px; text-decoration:none; font-weight:700;">View Appointment</a>
+      </div>` : ''}`;
   } else if (type === 'report') {
     const riskColor = riskLevel === 'HIGH' ? '#dc2626' : riskLevel === 'MEDIUM' ? '#d97706' : '#059669';
     const riskBg = riskLevel === 'HIGH' ? '#fef2f2' : riskLevel === 'MEDIUM' ? '#fffbeb' : '#f0fdf4';
@@ -153,7 +159,10 @@ function buildProfessionalEmailHtml(type, data = {}) {
         <p style="color: #92400e; margin: 0; font-size: 14px; line-height: 1.5; text-align: center;">
           <strong>Important:</strong> If this is an emergency situation, please contact emergency services immediately at 112 or your local emergency number.
         </p>
-      </div>`;
+      </div>
+      ${CLIENT_ORIGIN ? `<div style="text-align:center; margin-top: 12px;">
+        <a href="${CLIENT_ORIGIN}/dashboard" style="display:inline-block; background:#10b981; color:#ffffff; padding:12px 18px; border-radius:8px; text-decoration:none; font-weight:700;">Open Dashboard</a>
+      </div>` : ''}`;
   }
   
   return `
@@ -163,22 +172,34 @@ function buildProfessionalEmailHtml(type, data = {}) {
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>${subject}</title>
+      <meta name="color-scheme" content="light only">
+      <meta name="supported-color-schemes" content="light">
+      <style>
+        @media only screen and (max-width: 600px) {
+          .content { padding: 24px !important; }
+          h1 { font-size: 24px !important; }
+        }
+      </style>
     </head>
     <body style="${baseStyles.container}">
+      <div style="display:none; max-height:0; overflow:hidden; opacity:0;">
+        ${subject}
+      </div>
       <div style="${baseStyles.card}">
         <div style="${baseStyles.header}">
-          <h1 style="margin: 0; font-size: 28px; font-weight: 700;">JeevanRakshak</h1>
+          <h1 style="margin: 0; font-size: 28px; font-weight: 700;">${PROJECT_NAME}</h1>
           <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Mental Health & Wellness Platform</p>
         </div>
         
-        <div style="${baseStyles.content}">
+        <div class="content" style="${baseStyles.content}">
           ${contentHtml}
         </div>
         
         <div style="${baseStyles.footer}">
-          <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">This is an automated message from JeevanRakshak</p>
-          <p style="margin: 0; color: #9ca3af; font-size: 12px;">© ${new Date().getFullYear()} JeevanRakshak. All rights reserved.</p>
+          <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">This is an automated message from ${PROJECT_NAME}</p>
+          <p style="margin: 0; color: #9ca3af; font-size: 12px;">© ${new Date().getFullYear()} ${PROJECT_NAME}. All rights reserved.</p>
           ${CLIENT_ORIGIN ? `<p style="margin: 10px 0 0 0;"><a href="${CLIENT_ORIGIN}" style="color: #10b981; text-decoration: none; font-size: 14px;">Visit Dashboard</a></p>` : ''}
+          ${MAIL_FROM ? `<p style="margin: 8px 0 0 0; color: #9ca3af; font-size: 12px;">Need help? Contact us at <a href="mailto:${MAIL_FROM}" style="color:#10b981;text-decoration:none;">${MAIL_FROM}</a></p>` : ''}
         </div>
       </div>
     </body>
@@ -274,7 +295,7 @@ async function sendEmail(to, subject, html, retries = 3) {
         subject, 
         html,
         headers: {
-          'X-Mailer': 'JeevanRakshak v1.0',
+          'X-Mailer': `${PROJECT_NAME} v1.0`,
           'X-Priority': '3',
           'X-MSMail-Priority': 'Normal'
         }
@@ -334,7 +355,7 @@ exports.notifyAppointment = async (req, res) => {
     
     // Enhanced SMS notification
     if (parentPhone) {
-      const smsText = `JeevanRakshak Alert: ${userName} has scheduled a counseling session.\n\nDetails:\n- Counselor: ${counselorName}\n- Date: ${date} at ${time}\n- Type: ${sessionType || 'Counseling Session'}\n\nWe'll send a summary after the session. For urgent concerns, contact us immediately.`;
+      const smsText = `${PROJECT_NAME} Alert: ${userName} has scheduled a counseling session.\n\nDetails:\n- Counselor: ${counselorName}\n- Date: ${date} at ${time}\n- Type: ${sessionType || 'Counseling Session'}\n\nWe'll send a summary after the session. For urgent concerns, contact us immediately.`;
       
       results.sms = await sendSMS(parentPhone, smsText);
     }
@@ -342,7 +363,7 @@ exports.notifyAppointment = async (req, res) => {
     // Enhanced Email notification
     if (parentEmail) {
       const emailData = {
-        subject: 'Counseling Session Scheduled - JeevanRakshak',
+        subject: `Counseling Session Scheduled - ${PROJECT_NAME}`,
         userName,
         counselorName,
         date,
@@ -428,7 +449,7 @@ exports.notifyReport = async (req, res) => {
     // Enhanced SMS notification
     if (parentPhone) {
       const urgencyText = riskLevel === 'HIGH' ? 'URGENT - ' : '';
-      const smsText = `${urgencyText}JeevanRakshak Mental Health Report\n\nStudent: ${userName}\nRisk Level: ${riskLevel}\nDate: ${new Date().toLocaleDateString()}\n\n${reportSummary ? `Summary: ${reportSummary.substring(0, 100)}...\n\n` : ''}${riskLevel === 'HIGH' ? 'Please contact us immediately or seek professional help.' : 'Please check the detailed report in your dashboard.'}`;
+      const smsText = `${urgencyText}${PROJECT_NAME} Mental Health Report\n\nStudent: ${userName}\nRisk Level: ${riskLevel}\nDate: ${new Date().toLocaleDateString()}\n\n${reportSummary ? `Summary: ${reportSummary.substring(0, 100)}...\n\n` : ''}${riskLevel === 'HIGH' ? 'Please contact us immediately or seek professional help.' : 'Please check the detailed report in your dashboard.'}`;
       
       results.sms = await sendSMS(parentPhone, smsText);
     }
@@ -436,7 +457,7 @@ exports.notifyReport = async (req, res) => {
     // Enhanced Email notification
     if (parentEmail) {
       const emailData = {
-        subject: `${riskLevel === 'HIGH' ? 'URGENT - ' : ''}Mental Health Report for ${userName} - JeevanRakshak`,
+        subject: `${riskLevel === 'HIGH' ? 'URGENT - ' : ''}Mental Health Report for ${userName} - ${PROJECT_NAME}`,
         userName,
         riskLevel,
         reportSummary,
@@ -476,31 +497,27 @@ exports.notifyReport = async (req, res) => {
   }
 };
 
-// Send email notification to parents
+// Send email notification to parents (professional template)
 exports.sendParentEmailNotification = async (req, res) => {
   try {
-    const { parentEmail, userName, riskLevel, reportSummary } = req.body;
+    const { parentEmail, userName, riskLevel, reportSummary, tips = [] } = req.body || {};
 
     if (!parentEmail || !userName || !riskLevel) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: parentEmail,
-      subject: `Mental Health Report for ${userName}`,
-      html: `
-        <h2>Mental Health Report</h2>
-        <p>Dear Parent/Guardian,</p>
-        <p>This is an automated report regarding ${userName}'s mental health assessment.</p>
-        <p><strong>Risk Level:</strong> ${riskLevel}</p>
-        <p><strong>Summary:</strong> ${reportSummary || "Please check the dashboard for detailed information."}</p>
-        <p>If you have any concerns, please contact our support team immediately.</p>
-        <p>Best regards,<br>JeevanRakshak Team</p>
-      `,
+    const emailData = {
+      subject: `Mental Health Report for ${userName} - ${PROJECT_NAME}`,
+      userName,
+      riskLevel: String(riskLevel).toUpperCase(),
+      reportSummary: reportSummary || "Please check the dashboard for detailed information.",
+      tips: Array.isArray(tips) ? tips.slice(0, 5) : []
     };
 
-    await transporter.sendMail(mailOptions);
+    const html = buildProfessionalEmailHtml('report', emailData);
+    const result = await sendEmail(parentEmail, emailData.subject, html);
+    if (!result?.ok) return res.status(500).json({ error: result?.error || 'Email failed' });
+
     res.status(200).json({ message: "Email sent successfully" });
   } catch (error) {
     console.error("Email sending failed:", error);
@@ -519,7 +536,7 @@ exports.sendParentSMSNotification = async (req, res) => {
 
     // For now, we'll simulate SMS sending
     // In production, you would integrate with Twilio or similar service
-    const message = `JeevanRakshak Alert: ${userName}'s mental health assessment shows ${riskLevel} risk level. Please check the dashboard for details.`;
+    const message = `${PROJECT_NAME} Alert: ${userName}'s mental health assessment shows ${riskLevel} risk level. Please check the dashboard for details.`;
     
     console.log(`SMS would be sent to ${parentPhone}: ${message}`);
     
@@ -538,10 +555,10 @@ exports.sendParentSMSNotification = async (req, res) => {
   }
 };
 
-// Send combined notification (email + SMS) to parents when risk is detected
+// Send combined notification (email + SMS) to parents when risk is detected (professional templates)
 exports.sendParentNotification = async (req, res) => {
   try {
-    const { userGoogleId, riskLevel, reportSummary } = req.body;
+    const { userGoogleId, riskLevel, reportSummary, tips = [] } = req.body || {};
 
     if (!userGoogleId || !riskLevel) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -555,7 +572,7 @@ exports.sendParentNotification = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    if (!user.parentEmail || !user.parentPhone) {
+    if (!user.parentEmail && !user.parentPhone) {
       return res.status(400).json({ 
         error: "Parent contact information not available. Please update profile." 
       });
@@ -563,61 +580,36 @@ exports.sendParentNotification = async (req, res) => {
 
     const results = { email: null, sms: null };
 
-    // Send email notification
-    try {
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: user.parentEmail,
-        subject: `Mental Health Alert for ${user.name}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #e74c3c;">Mental Health Alert</h2>
-            <p>Dear Parent/Guardian,</p>
-            <p>This is an important notification regarding <strong>${user.name}</strong>'s mental health assessment.</p>
-            <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #e74c3c; margin: 20px 0;">
-              <p><strong>Risk Level:</strong> <span style="color: #e74c3c;">${riskLevel.toUpperCase()}</span></p>
-              <p><strong>Assessment Summary:</strong> ${reportSummary || "Please check the JeevanRakshak dashboard for detailed information."}</p>
-            </div>
-            <p><strong>Recommended Actions:</strong></p>
-            <ul>
-              <li>Have a gentle conversation with ${user.name}</li>
-              <li>Consider professional counseling if needed</li>
-              <li>Monitor their well-being closely</li>
-              <li>Contact our support team for guidance</li>
-            </ul>
-            <p>If this is an emergency, please contact emergency services immediately.</p>
-            <p>Best regards,<br><strong>JeevanRakshak Team</strong></p>
-            <hr>
-            <p style="font-size: 12px; color: #666;">This is an automated message. Please do not reply to this email.</p>
-          </div>
-        `,
-      };
-
-      await transporter.sendMail(mailOptions);
-      results.email = "success";
-    } catch (emailError) {
-      console.error("Email sending failed:", emailError);
-      results.email = "failed";
+    // Send email notification (professional report template)
+    if (user.parentEmail) {
+      try {
+        const emailData = {
+          subject: `${String(riskLevel).toUpperCase() === 'HIGH' ? 'URGENT - ' : ''}Mental Health Report for ${user.name} - ${PROJECT_NAME}`,
+          userName: user.name,
+          riskLevel: String(riskLevel).toUpperCase(),
+          reportSummary: reportSummary || undefined,
+          tips: Array.isArray(tips) ? tips.slice(0, 5) : []
+        };
+        const html = buildProfessionalEmailHtml('report', emailData);
+        const out = await sendEmail(user.parentEmail, emailData.subject, html);
+        results.email = out?.ok ? "success" : "failed";
+      } catch (emailError) {
+        console.error("Email sending failed:", emailError);
+        results.email = "failed";
+      }
     }
 
-    // Send SMS notification
-    try {
-      const message = `JeevanRakshak ALERT: ${user.name}'s mental health assessment shows ${riskLevel.toUpperCase()} risk level. Please check the dashboard and consider speaking with them. If emergency, call 911.`;
-      
-      console.log(`SMS would be sent to ${user.parentPhone}: ${message}`);
-      
-      // TODO: Implement actual SMS sending with Twilio
-      // const client = require('twilio')(accountSid, authToken);
-      // await client.messages.create({
-      //   body: message,
-      //   from: process.env.TWILIO_PHONE,
-      //   to: user.parentPhone
-      // });
-
-      results.sms = "success";
-    } catch (smsError) {
-      console.error("SMS sending failed:", smsError);
-      results.sms = "failed";
+    // Send SMS notification via Twilio (if configured)
+    if (user.parentPhone) {
+      try {
+        const urgencyText = String(riskLevel).toUpperCase() === 'HIGH' ? 'URGENT - ' : '';
+        const smsText = `${urgencyText}${PROJECT_NAME} Mental Health Report\n\nStudent: ${user.name}\nRisk Level: ${String(riskLevel).toUpperCase()}\nDate: ${new Date().toLocaleDateString()}\n\n${reportSummary ? `Summary: ${reportSummary.substring(0, 100)}...\n\n` : ''}${String(riskLevel).toUpperCase() === 'HIGH' ? 'Please contact us immediately or seek professional help.' : 'Please check the detailed report in your dashboard.'}`;
+        const out = await sendSMS(user.parentPhone, smsText);
+        results.sms = out?.ok ? "success" : "failed";
+      } catch (smsError) {
+        console.error("SMS sending failed:", smsError);
+        results.sms = "failed";
+      }
     }
 
     res.status(200).json({ 
@@ -629,5 +621,30 @@ exports.sendParentNotification = async (req, res) => {
   } catch (error) {
     console.error("Parent notification failed:", error);
     res.status(500).json({ error: "Failed to send parent notifications" });
+  }
+};
+
+// Preview email template in browser (for QA/design)
+// GET /api/notify/email/preview?type=appointment|report&userName=...&riskLevel=...
+exports.previewEmail = async (req, res) => {
+  try {
+    const { type = 'report' } = req.query || {};
+    const sample = {
+      subject: type === 'appointment' ? 'Counseling Session Scheduled - JeevanRakshak' : 'Mental Health Assessment Report - JeevanRakshak',
+      userName: req.query.userName || 'Student Demo',
+      counselorName: req.query.counselorName || 'Counselor A',
+      date: req.query.date || new Date().toLocaleDateString(),
+      time: req.query.time || '10:00',
+      sessionType: req.query.sessionType || 'Video',
+      riskLevel: (req.query.riskLevel || 'MEDIUM').toUpperCase(),
+      reportSummary: req.query.reportSummary || 'Recent check-ins show moderate stress and fair sleep. Suggested steps below.',
+      tips: (req.query.tips ? [].concat(req.query.tips) : ['10-minute mindful walk', 'Hydrate and light snack', 'Plan two short focus blocks'])
+    };
+    const html = buildProfessionalEmailHtml(type, sample);
+    res.setHeader('Content-Type', 'text/html');
+    return res.status(200).send(html);
+  } catch (e) {
+    console.error('Email preview failed:', e);
+    return res.status(500).json({ ok: false, error: 'PREVIEW_FAILED' });
   }
 };

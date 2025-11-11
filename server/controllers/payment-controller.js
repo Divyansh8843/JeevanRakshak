@@ -1,6 +1,6 @@
 const Stripe = require('stripe');
 const Booking = require('../models/Booking-model');
-const { emitToUser, emitToCounselor } = require('../utils/socket');
+const { emitToUser, emitToCounselor, emitBookingUpdate } = require('../utils/socket');
 const { sendParentAlert } = require('../utils/mailer');
 const User = require('../models/User-model');
 const { sendParentSMS } = require('../utils/sms');
@@ -160,6 +160,7 @@ exports.webhook = async (req, res) => {
         // Mark as paid, pending counselor confirmation
         booking.status = 'paid_pending_counselor';
         await booking.save();
+        try { emitBookingUpdate(booking); } catch (_) {}
 
         // Notify user the payment is received and awaiting counselor confirmation
         try {
@@ -169,8 +170,14 @@ exports.webhook = async (req, res) => {
             sessionType: booking.sessionType,
             date: booking.date,
             time: booking.time,
+            price: booking.price,
+            currency: booking.currency,
+            paymentStatus: 'completed',
+            paymentTimestamp: new Date()
           });
-        } catch (_) {}
+        } catch (error) {
+          console.error('Error emitting payment confirmation to user:', error);
+        }
 
         // Notify counselor via realtime socket only (no email/SMS)
         try {
