@@ -20,7 +20,7 @@ const Hero = ({ navigateTo, onStartAuth, isAuthenticated }) => {
       <img
         src="/hero.png"
         alt="Hero Background"
-        className="absolute inset-0 w-full h-full object-cover z-0"
+        className="absolute inset-0 w-full h-full object-cover  z-0"
         style={{ minHeight: "100vh", minWidth: "100vw" }}
       />
       {/* Main Content */}

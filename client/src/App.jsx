@@ -13,7 +13,6 @@ import Features from "./components/Features";
 import HowItWorks from "./components/HowItWorks";
 import FAQ from "./components/FAQ";
 import Footer from "./components/Footer";
-import Testimonials from "./components/Testimonials";
 import Statistics from "./components/Statistics";
 import CrisisSupport from "./components/CrisisSupport";
 import Dashboard from "./pages/Dashboard";
@@ -34,7 +33,9 @@ function App() {
 
   const onStartAuth = useCallback(() => {
     // Use redirect flow handled by the server
-    window.location.href = `${import.meta.env.VITE_SERVER_URL || 'http://localhost:8080'}/api/auth/google/redirect`;
+    window.location.href = `${
+      import.meta.env.VITE_SERVER_URL || "http://localhost:8080"
+    }/api/auth/google/redirect`;
   }, []);
 
   // PWA install prompt handler (capture and expose a manual trigger)
@@ -46,7 +47,7 @@ function App() {
         window.deferredInstallPrompt = e;
       } catch (_) {}
     };
-    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    window.addEventListener("beforeinstallprompt", onBeforeInstall);
     // Expose a manual trigger (call this from a user gesture, e.g., button click)
     window.promptInstall = async () => {
       const ev = window.deferredInstallPrompt;
@@ -59,7 +60,7 @@ function App() {
       return true;
     };
     return () => {
-      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
     };
   }, []);
 
@@ -75,7 +76,12 @@ function App() {
     if (justAuthed) {
       (async () => {
         try {
-          const res = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:8080'}/api/auth/me`, { credentials: "include" });
+          const res = await fetch(
+            `${
+              import.meta.env.VITE_SERVER_URL || "http://localhost:8080"
+            }/api/auth/me`,
+            { credentials: "include" }
+          );
           if (!res.ok) throw new Error("Failed to fetch user");
           const me = await res.json();
           setIsAuthenticated(true);
@@ -190,7 +196,8 @@ function App() {
         }
       };
       document.addEventListener("click", onAnchorClick);
-      removeAnchorListener = () => document.removeEventListener("click", onAnchorClick);
+      removeAnchorListener = () =>
+        document.removeEventListener("click", onAnchorClick);
     };
 
     const stopLenis = () => {
@@ -212,7 +219,9 @@ function App() {
           window.lenis = null;
         }
         // React to changes in reduced-motion preference
-        media = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
+        media =
+          window.matchMedia &&
+          window.matchMedia("(prefers-reduced-motion: reduce)");
         if (media && media.addEventListener) {
           mediaChangeHandler = async (e) => {
             stopLenis();
@@ -250,7 +259,12 @@ function App() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:8080'}/api/auth/me`, { credentials: "include" });
+        const res = await fetch(
+          `${
+            import.meta.env.VITE_SERVER_URL || "http://localhost:8080"
+          }/api/auth/me`,
+          { credentials: "include" }
+        );
         if (res.ok) {
           const me = await res.json();
           setIsAuthenticated(true);
@@ -271,11 +285,16 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:8080'}/api/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Accept": "application/json" },
-      });
+      await fetch(
+        `${
+          import.meta.env.VITE_SERVER_URL || "http://localhost:8080"
+        }/api/auth/logout`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { Accept: "application/json" },
+        }
+      );
     } catch (_) {}
     // Clear any client-side residues
     try {
@@ -312,7 +331,7 @@ function App() {
           <Features />
 
           <HowItWorks />
-          <Testimonials />
+
           <CrisisSupport />
           <Statistics />
           <FAQ />
