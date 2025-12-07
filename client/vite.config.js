@@ -1,17 +1,17 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
+      "/api": {
+        target: process.env.VITE_SERVER_URL || "http://localhost:8080",
         changeOrigin: true,
       },
-      '/uploads': {
-        target: 'http://localhost:8080',
+      "/uploads": {
+        target: process.env.VITE_SERVER_URL || "http://localhost:8080",
         changeOrigin: true,
       },
     },
@@ -21,8 +21,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          icons: ['lucide-react'],
+          vendor: ["react", "react-dom", "react-router-dom"],
+          icons: ["lucide-react"],
         },
       },
     },

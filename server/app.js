@@ -84,7 +84,9 @@ app.get("/api/resources", (_req, res) => {
   ];
   res.json(items);
 });
-
+app.get("/health", (req, res, next) => {
+  res.send(`Server running on port ${PORT}`);
+});
 // Global error handler to ensure consistent JSON responses
 app.use((err, _req, res, _next) => {
   console.error("Unhandled error:", err);

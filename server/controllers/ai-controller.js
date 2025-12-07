@@ -1,18 +1,23 @@
 const Routine = require("../models/Routine-model");
 const { generateTips } = require("../utils/tips");
 const User = require("../models/User-model");
-const { analyzeRoutineData, chatWithAssistant, generateTipsFromGemini } = require("../utils/gemini");
+const {
+  analyzeRoutineData,
+  chatWithAssistant,
+  generateTipsFromGemini,
+} = require("../utils/gemini");
 const { scoreText } = require("../services/risk-service");
 const { sendParentAlert } = require("../utils/mailer");
 const { sendParentSMS } = require("../utils/sms");
 const { emitToUser } = require("../utils/socket");
 const PROJECT_NAME = process.env.PROJECT_NAME || "JeevanRakshak";
 const CLIENT_ORIGIN =
-  process.env.CLIENT_ORIGIN || process.env.CLIENT_URL || "http://localhost:5173";
+  process.env.CLIENT_ORIGIN || process.env.CLIENT_URL || "w5173";
 
 function riskBadge(risk) {
   const r = String(risk || "LOW").toUpperCase();
-  const color = r === "HIGH" ? "#b91c1c" : r === "MEDIUM" ? "#d97706" : "#059669";
+  const color =
+    r === "HIGH" ? "#b91c1c" : r === "MEDIUM" ? "#d97706" : "#059669";
   const bg = r === "HIGH" ? "#fee2e2" : r === "MEDIUM" ? "#fef3c7" : "#ecfdf5";
   return `<span style="display:inline-block;padding:4px 8px;border-radius:999px;background:${bg};color:${color};font-weight:600;font-size:12px">${r}</span>`;
 }
@@ -94,7 +99,9 @@ exports.analyze = async (req, res) => {
       });
       // Also emit updated routines list for real-time dashboards that listen to 'routines:update'
       try {
-        const items = await Routine.find({ googleId }).sort({ createdAt: -1 }).limit(50);
+        const items = await Routine.find({ googleId })
+          .sort({ createdAt: -1 })
+          .limit(50);
         emitToUser(googleId, "routines:update", items);
       } catch (_) {}
     } catch (_) {}
@@ -108,9 +115,11 @@ exports.analyze = async (req, res) => {
         const dateStr = new Date(doc.createdAt).toLocaleString();
         const isWeekly = period === "weekly";
         const riskText = String(analysis.risk || "LOW").toUpperCase();
-        const subject = `${PROJECT_NAME} • ${isWeekly ? "Weekly" : "Daily"} Wellness Report for ${
-          user.name || "Student"
-        }${riskText === "HIGH" ? " • High Risk" : ""}`;
+        const subject = `${PROJECT_NAME} • ${
+          isWeekly ? "Weekly" : "Daily"
+        } Wellness Report for ${user.name || "Student"}${
+          riskText === "HIGH" ? " • High Risk" : ""
+        }`;
         const preheader = `${isWeekly ? "Weekly" : "Daily"} summary • Mood ${
           data?.mood ?? "-"
         }, Energy ${data?.energy ?? "-"}, Sleep ${data?.sleep ?? "-"}, Stress ${
@@ -131,10 +140,14 @@ exports.analyze = async (req, res) => {
           ${brandHeader(preheader)}
           <div style="padding:16px">
             <div style="display:flex;align-items:center;gap:8px;color:#111827">
-              <h2 style="margin:0;font-size:16px">${isWeekly ? "Weekly" : "Daily"} Wellness Report</h2>
+              <h2 style="margin:0;font-size:16px">${
+                isWeekly ? "Weekly" : "Daily"
+              } Wellness Report</h2>
               ${riskBadge(riskText)}
             </div>
-            <p style="margin:6px 0 12px;color:#374151"><b>${user.name || "Student"}</b> • ${dateStr}</p>
+            <p style="margin:6px 0 12px;color:#374151"><b>${
+              user.name || "Student"
+            }</b> • ${dateStr}</p>
             <div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:12px">
               <table style="border-collapse:collapse;width:100%">
                 <tbody>
@@ -149,14 +162,18 @@ exports.analyze = async (req, res) => {
                     .join("")}
                   <tr>
                     <td style="border-bottom:1px solid #f3f4f6;padding:10px;background:#f9fafb">Risk</td>
-                    <td style="border-bottom:1px solid #f3f4f6;padding:10px">${riskBadge(riskText)}</td>
+                    <td style="border-bottom:1px solid #f3f4f6;padding:10px">${riskBadge(
+                      riskText
+                    )}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
             ${
               activities.length
-                ? `<div style="margin:8px 0 12px"><b>Activities:</b> ${activities.join(", ")}</div>`
+                ? `<div style="margin:8px 0 12px"><b>Activities:</b> ${activities.join(
+                    ", "
+                  )}</div>`
                 : ""
             }
             ${
@@ -331,7 +348,13 @@ exports.checkinML = async (req, res) => {
     // If ML service is unavailable or returns no score, always return an error.
     // This enforces strict behavior so no routine is created without ML.
     if (!risk) {
-      return res.status(503).json({ ok: false, error: "ML risk model unavailable", code: "ML_UNAVAILABLE" });
+      return res
+        .status(503)
+        .json({
+          ok: false,
+          error: "ML risk model unavailable",
+          code: "ML_UNAVAILABLE",
+        });
     }
     // Prefer service-derived level which already applies thresholds; fall back to raw label
     const computedLevel = (risk?.level || risk?.label || "SAFE").toUpperCase();
@@ -351,19 +374,19 @@ exports.checkinML = async (req, res) => {
         : "LOW";
 
     // Tips engine selection: default ML deterministic; optional Gemini if configured
-    let tipsEngine = String(process.env.TIPS_ENGINE || 'ml').toLowerCase();
+    let tipsEngine = String(process.env.TIPS_ENGINE || "ml").toLowerCase();
     let tips;
-    if (tipsEngine === 'gemini') {
+    if (tipsEngine === "gemini") {
       try {
         tips = await generateTipsFromGemini({ data, riskLabel });
       } catch (_) {
         // Fallback to deterministic tips if Gemini is unavailable or errors occur
         tips = generateTips({ data, riskLabel, riskScore, probs: risk?.probs });
-        tipsEngine = 'ml';
+        tipsEngine = "ml";
       }
     } else {
       tips = generateTips({ data, riskLabel, riskScore, probs: risk?.probs });
-      tipsEngine = 'ml';
+      tipsEngine = "ml";
     }
 
     const doc = await Routine.create({
@@ -391,7 +414,9 @@ exports.checkinML = async (req, res) => {
       });
       // Also emit updated routines list for real-time dashboards that listen to 'routines:update'
       try {
-        const items = await Routine.find({ googleId }).sort({ createdAt: -1 }).limit(50);
+        const items = await Routine.find({ googleId })
+          .sort({ createdAt: -1 })
+          .limit(50);
         emitToUser(googleId, "routines:update", items);
       } catch (_) {}
     } catch (_) {}
