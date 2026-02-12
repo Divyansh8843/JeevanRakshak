@@ -1,0 +1,54 @@
+services:
+  # Backend Service (Node.js)
+  - type: web
+    name: jeevan-rakshak-backend
+    runtime: node
+    region: singapore # Optional: Choose region closest to users
+    plan: free # Optional: free plan
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false # Set in dashboard
+      - key: JWT_SECRET
+        sync: false # Set in dashboard
+      - key: CLIENT_ORIGIN
+        sync: false # Set in dashboard
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: RISK_SERVICE_URL
+        value: http://jeevan-rakshak-ml:10000
+
+  # ML Service (Python)
+  - type: web
+    name: jeevan-rakshak-ml
+    runtime: python3
+    region: singapore
+    plan: free
+    rootDir: ml
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn service.app:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: MODEL_PATH
+        value: model/model.joblib # Relative to ml/ root

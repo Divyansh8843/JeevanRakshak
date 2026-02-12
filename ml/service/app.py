@@ -7,7 +7,12 @@ from typing import List
 
 app = FastAPI(title="Suicide Risk Detector", version="1.0.0")
 
-MODEL_PATH = os.environ.get("MODEL_PATH", "ml/model/model.joblib")
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+MODEL_PATH = os.environ.get("MODEL_PATH", str(BASE_DIR / "model" / "model.joblib"))
+VERSION_PATH = str(BASE_DIR / "model" / "VERSION.txt")
+
 LABELS = ["SAFE", "AMBIGUOUS", "RISK_LOW", "RISK_HIGH"]
 
 class PredictIn(BaseModel):
@@ -33,10 +38,19 @@ def load_model():
     global _model, _version
     if _model is not None:
         return
+    import joblib
     bundle = joblib.load(MODEL_PATH)
-    _model = bundle["model"]
-    with open("ml/model/VERSION.txt", "r", encoding="utf-8") as f:
-        _version = f.read().strip()
+    # If the bundle contains the model directly (common in some joblib dumps) or is a dict
+    if isinstance(bundle, dict) and "model" in bundle:
+        _model = bundle["model"]
+    else:
+        _model = bundle
+        
+    try:
+        with open(VERSION_PATH, "r", encoding="utf-8") as f:
+            _version = f.read().strip()
+    except Exception:
+        _version = "unknown"
 
 
 @app.on_event("startup")
