@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { toast } from "react-hot-toast";
+import { getAuthHeaders } from "../lib/auth";
 
 const Profile = ({ user, onEdit }) => {
   const [editMode, setEditMode] = useState(false);
@@ -45,7 +46,9 @@ const Profile = ({ user, onEdit }) => {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:8080'}/api/user/profile?googleId=${user.googleId}`);
+        const res = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:8080'}/api/user/profile?googleId=${user.googleId}`, {
+          headers: { ...getAuthHeaders() }
+        });
         if (!res.ok) throw new Error("Failed to fetch user info");
         const data = await res.json();
         setFormData({
@@ -151,7 +154,7 @@ const Profile = ({ user, onEdit }) => {
 
       const res = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:8080'}/api/counselors/me`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         credentials: "include",
         body: JSON.stringify(payload),
       });
@@ -206,6 +209,7 @@ const Profile = ({ user, onEdit }) => {
         setCounselorError("");
         const res = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:8080'}/api/counselors/me`, {
           credentials: "include",
+          headers: { ...getAuthHeaders() }
         });
         if (!res.ok) {
           if (res.status === 403) {
@@ -308,7 +312,7 @@ const Profile = ({ user, onEdit }) => {
       
       const res = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:8080'}/api/user/profile`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({
           googleId: user.googleId,
           name: formData.name,

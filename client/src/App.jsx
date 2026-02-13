@@ -22,6 +22,7 @@ import Profile from "./pages/Profile";
 // Redirect-based OAuth flow (server-side)
 import { Toaster, toast } from "react-hot-toast";
 import BackToTop from "./components/BackToTop";
+import { setAuthToken, clearAuthToken, getAuthHeaders } from "./lib/auth";
 
 function App() {
   const [currentPage, setCurrentPage] = useState("home");
@@ -68,21 +69,33 @@ function App() {
   useEffect(() => {
     const url = new URL(window.location.href);
     const justAuthed = url.searchParams.get("auth") === "1";
-    if (justAuthed) {
+    const token = url.searchParams.get("token");
+    
+    if (token) {
+      setAuthToken(token);
+      url.searchParams.delete("token");
+    }
+    
+    if (justAuthed || token) {
       // Clean the URL
       url.searchParams.delete("auth");
       window.history.replaceState({}, "", url.pathname + url.search + url.hash);
-    }
-    if (justAuthed) {
+      
       (async () => {
         try {
           const res = await fetch(
             `${
               import.meta.env.VITE_SERVER_URL || "http://localhost:8080"
             }/api/auth/me`,
-            { credentials: "include" }
+            { credentials: "include", headers: { ...getAuthHeaders() } }
           );
-          if (!res.ok) throw new Error("Failed to fetch user");
+          if (!res.ok) {
+            if (res.status === 401 || res.status === 403) {
+              clearAuthToken();
+              throw new Error("Session expired or invalid. Please sign in again.");
+            }
+            throw new Error(`Failed to fetch user: ${res.status}`);
+          }
           const me = await res.json();
           setIsAuthenticated(true);
           setUser(me);
@@ -99,7 +112,11 @@ function App() {
           toast.success("Signed in successfully");
         } catch (e) {
           console.error("Post-redirect auth fetch failed:", e);
-          toast.error(e?.message || "Could not complete sign-in");
+          if (e.message.includes("401") || e.message.includes("Unauthorized")) {
+             clearAuthToken();
+          }
+          toast.error("Authentication failed. Please try again.");
+          navigate("/", { replace: true });
         }
       })();
     }
@@ -263,7 +280,7 @@ function App() {
           `${
             import.meta.env.VITE_SERVER_URL || "http://localhost:8080"
           }/api/auth/me`,
-          { credentials: "include" }
+          { credentials: "include", headers: { ...getAuthHeaders() } }
         );
         if (res.ok) {
           const me = await res.json();
@@ -271,7 +288,10 @@ function App() {
           setUser(me);
         }
       } catch (_) {
-        // ignore if not authenticated
+        // If 401 or failed, assume not authenticated
+        if (localStorage.getItem("auth_token")) {
+           // clearAuthToken(); // Optional: only clear if we are sure it's invalid
+        }
       } finally {
         setAuthChecked(true);
       }
@@ -296,6 +316,7 @@ function App() {
         }
       );
     } catch (_) {}
+    clearAuthToken();
     // Clear any client-side residues
     try {
       sessionStorage.removeItem("pendingBooking");

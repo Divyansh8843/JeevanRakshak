@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import io from "socket.io-client";
 import { toast } from "react-hot-toast";
+import { getAuthHeaders } from "../lib/auth";
 
 export default function StudentSession({ user }) {
   const { bookingId } = useParams();
@@ -125,7 +126,7 @@ export default function StudentSession({ user }) {
       const res = await fetch(`${SERVER_URL}/api/bookings/${encodeURIComponent(bookingId)}/accept-join`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: { "Content-Type": "application/json", Accept: "application/json", ...getAuthHeaders() },
         body: JSON.stringify({})
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -153,7 +154,7 @@ export default function StudentSession({ user }) {
       const res = await fetch(`${SERVER_URL}/api/bookings/${encodeURIComponent(bookingId)}/join`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: { "Content-Type": "application/json", Accept: "application/json", ...getAuthHeaders() },
         body: JSON.stringify({ acceptJoinRequest: true })
       });
       if (res.ok) {
@@ -178,7 +179,7 @@ export default function StudentSession({ user }) {
       const res = await fetch(`${SERVER_URL}/api/bookings/${encodeURIComponent(bookingId)}/feedback`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: { "Content-Type": "application/json", Accept: "application/json", ...getAuthHeaders() },
         body: JSON.stringify({ rating: feedbackRating, comment: feedbackComment })
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

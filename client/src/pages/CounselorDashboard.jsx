@@ -33,6 +33,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
+import { getAuthHeaders } from "../lib/auth";
 
 const CounselorDashboard = ({ user, onLogout, navigateTo }) => {
   const [activeTab, setActiveTab] = useState(() => {
@@ -125,6 +126,7 @@ const CounselorDashboard = ({ user, onLogout, navigateTo }) => {
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
+            ...getAuthHeaders(),
           },
           body: JSON.stringify({}),
         }
@@ -152,6 +154,7 @@ const CounselorDashboard = ({ user, onLogout, navigateTo }) => {
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
+            ...getAuthHeaders(),
           },
           body: JSON.stringify({ reason: "Not available" }),
         }
@@ -301,6 +304,7 @@ const CounselorOverviewContent = ({ user }) => {
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
+            ...getAuthHeaders(),
           },
         }
       );
@@ -335,6 +339,7 @@ const CounselorOverviewContent = ({ user }) => {
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
+            ...getAuthHeaders(),
           },
         }
       );
@@ -365,6 +370,7 @@ const CounselorOverviewContent = ({ user }) => {
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
+            ...getAuthHeaders(),
           },
         }
       );

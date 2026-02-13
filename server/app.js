@@ -17,6 +17,8 @@ const http = require("http");
 const { init: initSocket } = require("./utils/socket");
 
 const app = express();
+// Trust proxy is required for secure cookies behind Render's load balancer
+app.set("trust proxy", 1);
 app.use(cookieParser());
 app.use(
   cors({

@@ -50,6 +50,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
+import { getAuthHeaders } from "../lib/auth";
 
 // Backend server URL for realtime/socket connection (fallback to localhost:8080 in dev)
 const SERVER_URL =
@@ -265,14 +266,16 @@ const OverviewContent = ({ user }) => {
         const tRes = await fetch(
           `${SERVER_URL}/api/risk/trend?googleId=${encodeURIComponent(
             user.googleId
-          )}&period=daily&days=7`
+          )}&period=daily&days=7`,
+          { headers: { ...getAuthHeaders() } }
         );
         const tJson = tRes.ok ? await tRes.json() : null;
         // Fetch recent routines
         const rRes = await fetch(
           `${SERVER_URL}/api/routines?googleId=${encodeURIComponent(
             user.googleId
-          )}`
+          )}`,
+          { headers: { ...getAuthHeaders() } }
         );
         const rJson = rRes.ok ? await rRes.json() : [];
         if (!mounted) return;
@@ -799,7 +802,7 @@ const CheckinContent = ({ user }) => {
       };
       const res = await fetch(`${SERVER_URL}/api/risk/checkin`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify(payload),
       });
       // If ANY error from server, block success and show clear message.
@@ -1906,7 +1909,7 @@ const HumanCounselorContent = ({ user }) => {
           };
           fetch(`${SERVER_URL}/api/notify/appointment`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
             body: JSON.stringify({
               parentPhone: parentPhone || undefined,
               parentEmail: parentEmail || undefined,
@@ -2037,6 +2040,7 @@ const HumanCounselorContent = ({ user }) => {
             headers: {
               "Content-Type": "application/json",
               Accept: "application/json",
+              ...getAuthHeaders(),
             },
           }
         );
@@ -2166,6 +2170,7 @@ const HumanCounselorContent = ({ user }) => {
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
+            ...getAuthHeaders(),
           },
         }
       );
@@ -2352,6 +2357,7 @@ const HumanCounselorContent = ({ user }) => {
                     headers: {
                       "Content-Type": "application/json",
                       Accept: "application/json",
+                      ...getAuthHeaders(),
                     },
                     body: JSON.stringify({ rating, comment }),
                   }
@@ -2391,7 +2397,8 @@ const HumanCounselorContent = ({ user }) => {
           const res = await fetch(
             `${SERVER_URL}/api/bookings?googleId=${encodeURIComponent(
               user.googleId
-            )}`
+            )}`,
+            { headers: { ...getAuthHeaders() } }
           );
           if (res.ok) {
             const items = await res.json();
@@ -2511,6 +2518,7 @@ const HumanCounselorContent = ({ user }) => {
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
+            ...getAuthHeaders(),
           },
           body: JSON.stringify(payload),
           credentials: "include",

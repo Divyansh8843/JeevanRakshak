@@ -23,16 +23,9 @@ const googleRedirectClient =
     : null;
 
 // Helpers
+const { getCurrentUser } = require("../utils/auth-helper");
 async function getCurrentUserFromCookie(req) {
-  try {
-    const token = req.cookies?.auth_token;
-    if (!token) return null;
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await User.findOne({ googleId: decoded.googleId });
-    return user || null;
-  } catch (_) {
-    return null;
-  }
+  return getCurrentUser(req);
 }
 
 // POST /api/auth/google (token-post flow; still supported for fallback)
@@ -63,11 +56,11 @@ exports.googleLogin = async (req, res) => {
     });
     res.cookie("auth_token", token, {
       httpOnly: true,
-      sameSite: "lax",
-      secure: false,
+      sameSite: "none",
+      secure: true,
       maxAge: 365 * 24 * 60 * 60 * 1000, // 365 days
     });
-    return res.status(200).json(user);
+    return res.status(200).json({ token, ...user.toObject() });
   } catch (e) {
     console.error("Google login failed:", e);
     return res.status(500).json({ error: "Google login failed" });
@@ -452,12 +445,12 @@ exports.googleRedirectCallback = async (req, res) => {
     });
     res.cookie("auth_token", token, {
       httpOnly: true,
-      sameSite: "lax",
-      secure: false,
+      sameSite: "none",
+      secure: true,
       maxAge: 365 * 24 * 60 * 60 * 1000,
     });
     // Redirect to profile page after login
-    return res.redirect(CLIENT_ORIGIN + "/profile?auth=1");
+    return res.redirect(`${CLIENT_ORIGIN}/profile?auth=1&token=${token}`);
   } catch (e) {
     console.error("Redirect callback failed:", e);
     return res.status(500).send("Redirect callback failed");
@@ -467,14 +460,23 @@ exports.googleRedirectCallback = async (req, res) => {
 // GET /api/auth/me -> returns current user using auth_token cookie
 exports.me = async (req, res) => {
   try {
-    const token = req.cookies?.auth_token;
-    if (!token) return res.status(401).json({ error: "Not authenticated" });
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await User.findOne({ googleId: decoded.googleId });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    const { getCurrentUser } = require("../utils/auth-helper");
+    const user = await getCurrentUser(req);
+    
+    // DEBUG LOGGING
+    if (!user) {
+      console.log("❌ Auth failed: No user found from token/cookie", {
+        origin: req.headers.origin,
+        cookies: req.cookies ? Object.keys(req.cookies) : "None",
+        authHeader: req.headers.authorization ? "Present" : "Missing",
+        userAgent: req.get('user-agent'),
+      });
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     return res.status(200).json(user);
   } catch (e) {
-    console.error("Auth me failed:", e);
+    console.error("Auth me failed:", e.message);
     return res.status(401).json({ error: "Invalid token" });
   }
 };
@@ -484,8 +486,8 @@ exports.logout = async (_req, res) => {
   try {
     res.clearCookie("auth_token", {
       httpOnly: true,
-      sameSite: "lax",
-      secure: false,
+      sameSite: "none",
+      secure: true,
     });
     return res.status(200).json({ ok: true });
   } catch (e) {

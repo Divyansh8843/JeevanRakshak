@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
+import { setAuthToken } from "../lib/auth";
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -17,16 +18,17 @@ const Login = () => {
         callback: async (credentialResponse) => {
           const decoded = jwtDecode(credentialResponse.credential);
           // Send user info to backend
-          await fetch("/api/auth/google", {
+          const res = await fetch("/api/auth/google", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              googleId: decoded.sub,
-              name: decoded.name,
-              email: decoded.email,
-              picture: decoded.picture,
+              id_token: credentialResponse.credential,
             }),
           });
+          const data = await res.json();
+          if (data.token) {
+            setAuthToken(data.token);
+          }
           // Redirect to profile page
           navigate("/profile");
         },

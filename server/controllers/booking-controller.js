@@ -242,14 +242,11 @@ exports.createBooking = async (req, res) => {
 exports.listPendingForCounselor = async (req, res) => {
   try {
     let email = String(req.query.email || "").toLowerCase();
-    // Prefer authenticated counselor email from cookie
+    // Prefer authenticated counselor email from token/cookie
     try {
-      const token = req.cookies?.auth_token;
-      if (token) {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        const u = await User.findOne({ googleId: decoded.googleId });
-        if (u?.email) email = String(u.email).toLowerCase();
-      }
+      const { getCurrentUser } = require("../utils/auth-helper");
+      const u = await getCurrentUser(req);
+      if (u?.email) email = String(u.email).toLowerCase();
     } catch (_) {}
     if (!email) return res.status(400).json({ error: "email required" });
     const items = await Booking.find({
@@ -269,12 +266,9 @@ exports.getCounselorAppointments = async (req, res) => {
     // Extract counselor email from auth
     let email = String(req.query.email || "").toLowerCase();
     try {
-      const token = req.cookies?.auth_token;
-      if (token) {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        const u = await User.findOne({ googleId: decoded.googleId });
-        if (u?.email) email = String(u.email).toLowerCase();
-      }
+      const { getCurrentUser } = require("../utils/auth-helper");
+      const u = await getCurrentUser(req);
+      if (u?.email) email = String(u.email).toLowerCase();
     } catch (_) {}
     
     if (!email) return res.status(400).json({ error: "Counselor email required" });
@@ -544,13 +538,10 @@ exports.joinSession = async (req, res) => {
     let isCounselor = false;
 
     try {
-      const token = req.cookies?.auth_token;
-      if (token) {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        const u = await User.findOne({ googleId: decoded.googleId });
-        if (u?.email) email = String(u.email).toLowerCase();
-        if (u?.googleId) googleId = u.googleId;
-      }
+      const { getCurrentUser } = require("../utils/auth-helper");
+      const u = await getCurrentUser(req);
+      if (u?.email) email = String(u.email).toLowerCase();
+      if (u?.googleId) googleId = u.googleId;
     } catch (_) {}
 
     // Check if user is the counselor or the client
@@ -673,12 +664,9 @@ exports.confirmPaymentAndBook = async (req, res) => {
     // Determine counselor email from auth
     let email = String(req.body?.email || "").toLowerCase();
     try {
-      const token = req.cookies?.auth_token;
-      if (token) {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        const u = await User.findOne({ googleId: decoded.googleId });
-        if (u?.email) email = String(u.email).toLowerCase();
-      }
+      const { getCurrentUser } = require("../utils/auth-helper");
+      const u = await getCurrentUser(req);
+      if (u?.email) email = String(u.email).toLowerCase();
     } catch (_) {}
     
     if (!id || !email) {
