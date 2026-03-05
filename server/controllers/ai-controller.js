@@ -368,7 +368,7 @@ exports.checkinML = async (req, res) => {
     // Treat SAFE and AMBIGUOUS as LOW; RISK_LOW as MEDIUM; RISK_HIGH as HIGH
     const legacy =
       riskLabel === "RISK_HIGH"
-        ? "HIGH"w
+        ? "HIGH"
         : riskLabel === "RISK_LOW"
         ? "MEDIUM"
         : "LOW";
