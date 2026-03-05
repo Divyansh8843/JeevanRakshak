@@ -46,8 +46,10 @@ services:
     plan: free
     rootDir: ml
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn service.app:app --host 0.0.0.0 --port 10000
+    startCommand: uvicorn service.app:app --host 0.0.0.0 --port 10000 --reload
     envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
       - key: PYTHON_VERSION
         value: 3.12.3
       - key: MODEL_PATH

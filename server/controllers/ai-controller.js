@@ -368,13 +368,13 @@ exports.checkinML = async (req, res) => {
     // Treat SAFE and AMBIGUOUS as LOW; RISK_LOW as MEDIUM; RISK_HIGH as HIGH
     const legacy =
       riskLabel === "RISK_HIGH"
-        ? "HIGH"
+        ? "HIGH"w
         : riskLabel === "RISK_LOW"
         ? "MEDIUM"
         : "LOW";
 
     // Tips engine selection: default ML deterministic; optional Gemini if configured
-    let tipsEngine = String(process.env.TIPS_ENGINE || "ml").toLowerCase();
+    let tipsEngine = String(process.env.TIPS_ENGINE).toLowerCase();
     let tips;
     if (tipsEngine === "gemini") {
       try {

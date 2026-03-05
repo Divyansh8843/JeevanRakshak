@@ -9,9 +9,14 @@ app = FastAPI(title="Suicide Risk Detector", version="1.0.0")
 
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+# Determine base directory - handles both local dev and Render deployment
+# In Render, rootDir=ml, so __file__ is ml/service/app.py, parent.parent goes to root
+# In local dev, same calculation applies
+BASE_DIR = Path(__file__).resolve().parent.parent  # Goes from ml/service/app.py -> ml/
+
+# Use environment variable if set (for flexibility), otherwise use calculated path
 MODEL_PATH = os.environ.get("MODEL_PATH", str(BASE_DIR / "model" / "model.joblib"))
-VERSION_PATH = str(BASE_DIR / "model" / "VERSION.txt")
+VERSION_PATH = os.environ.get("VERSION_PATH", str(BASE_DIR / "model" / "VERSION.txt"))
 
 LABELS = ["SAFE", "AMBIGUOUS", "RISK_LOW", "RISK_HIGH"]
 
@@ -55,14 +60,21 @@ def load_model():
 
 @app.on_event("startup")
 async def startup():
+    global _model
     t0 = time.time()
-    load_model()
-    # Warmup
     try:
-        _model.predict(["warmup text"])
-    except Exception:
-        pass
-    print(f"Model loaded in {time.time()-t0:.2f}s")
+        load_model()
+        # Warmup with safe error handling
+        try:
+            _model.predict(["warmup text"])
+        except Exception as warmup_err:
+            print(f"Warmup error (non-fatal): {warmup_err}")
+        print(f"✓ Model loaded successfully in {time.time()-t0:.2f}s from {MODEL_PATH}")
+    except Exception as e:
+        print(f"✗ CRITICAL: Model failed to load: {e}")
+        import traceback
+        traceback.print_exc()
+        # Don't exit - let app start so /health endpoint can report the error
 
 
 @app.get("/health")
@@ -72,6 +84,30 @@ async def health():
         return {"ok": True, "version": _version}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+@app.get("/check-model")
+async def check_model():
+    """Diagnostic endpoint to check model status and file paths"""
+    import os
+    result = {
+        "model_loaded": _model is not None,
+        "model_path": MODEL_PATH,
+        "model_exists": os.path.exists(MODEL_PATH),
+        "version": _version,
+        "version_path": VERSION_PATH,
+        "version_exists": os.path.exists(VERSION_PATH),
+    }
+    
+    if _model is not None:
+        result["model_type"] = str(type(_model).__name__)
+        try:
+            # Check if TF-IDF is fitted
+            result["tfidf_fitted"] = hasattr(_model.named_steps.get("tfidf"), "idf_")
+        except Exception as e:
+            result["tfidf_check_error"] = str(e)
+    
+    return result
 
 
 @app.post("/predict", response_model=List[PredictOutItem])
