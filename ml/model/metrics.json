@@ -1,0 +1,39 @@
+{
+  "sklearn_version": "1.8.0",
+  "rows": 232074,
+  "label_counts": {
+    "RISK_HIGH": 116037,
+    "SAFE": 116037
+  },
+  "trained_labels": [
+    "SAFE",
+    "RISK_HIGH"
+  ],
+  "classification_report": {
+    "SAFE": {
+      "precision": 0.9342071881606765,
+      "recall": 0.9520403326582496,
+      "f1-score": 0.94303946048616,
+      "support": 23207.0
+    },
+    "RISK_HIGH": {
+      "precision": 0.951109158796398,
+      "recall": 0.9329541537400896,
+      "f1-score": 0.941944184630109,
+      "support": 23208.0
+    },
+    "accuracy": 0.9424970375956049,
+    "macro avg": {
+      "precision": 0.9426581734785373,
+      "recall": 0.9424972431991696,
+      "f1-score": 0.9424918225581345,
+      "support": 46415.0
+    },
+    "weighted avg": {
+      "precision": 0.9426583555529813,
+      "recall": 0.9424970375956049,
+      "f1-score": 0.9424918107594072,
+      "support": 46415.0
+    }
+  }
+}

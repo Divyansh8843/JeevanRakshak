@@ -15,6 +15,7 @@ const path = require("path");
 const { startScheduler } = require("./services/scheduler");
 const http = require("http");
 const { init: initSocket } = require("./utils/socket");
+const { checkRiskService } = require("./services/risk-service");
 
 const app = express();
 // Trust proxy is required for secure cookies behind Render's load balancer
@@ -87,7 +88,12 @@ app.get("/api/resources", (_req, res) => {
   res.json(items);
 });
 app.get("/health", (req, res, next) => {
-  res.send(`Server running on port ${PORT}`);
+  res.json({ ok: true, service: "jeevan-rakshak-backend", port: PORT });
+});
+
+app.get("/api/risk/health", async (_req, res) => {
+  const health = await checkRiskService();
+  res.status(health.ok ? 200 : 503).json(health);
 });
 // Global error handler to ensure consistent JSON responses
 app.use((err, _req, res, _next) => {

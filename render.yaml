@@ -21,19 +21,33 @@ services:
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
-      - key: EMAIL_USER
+      - key: GOOGLE_REDIRECT_URI
         sync: false
-      - key: EMAIL_PASS
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: FROM_EMAIL
         sync: false
       - key: TWILIO_ACCOUNT_SID
         sync: false
       - key: TWILIO_AUTH_TOKEN
         sync: false
-      - key: TWILIO_PHONE_NUMBER
+      - key: TWILIO_FROM
         sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: COUNSELOR_ALLOWLIST
+        sync: false
+      - key: TIPS_ENGINE
         sync: false
       - key: RISK_SERVICE_URL
         value: http://jeevan-rakshak-ml:10000
@@ -46,7 +60,7 @@ services:
     plan: free
     rootDir: ml
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn service.app:app --host 0.0.0.0 --port 10000 --reload
+    startCommand: uvicorn service.app:app --host 0.0.0.0 --port 10000
     envVars:
       - key: PYTHONUNBUFFERED
         value: "1"

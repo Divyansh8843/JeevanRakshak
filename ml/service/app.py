@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import joblib
+import json
 import os
 import time
 from typing import List
@@ -17,8 +18,25 @@ BASE_DIR = Path(__file__).resolve().parent.parent  # Goes from ml/service/app.py
 # Use environment variable if set (for flexibility), otherwise use calculated path
 MODEL_PATH = os.environ.get("MODEL_PATH", str(BASE_DIR / "model" / "model.joblib"))
 VERSION_PATH = os.environ.get("VERSION_PATH", str(BASE_DIR / "model" / "VERSION.txt"))
+METRICS_PATH = os.environ.get("METRICS_PATH", str(BASE_DIR / "model" / "metrics.json"))
 
 LABELS = ["SAFE", "AMBIGUOUS", "RISK_LOW", "RISK_HIGH"]
+HIGH_RISK_PHRASES = [
+    "kill myself",
+    "end my life",
+    "end it all",
+    "take my life",
+    "hurt myself",
+    "cut myself",
+    "suicide",
+    "want to die",
+    "wish i was dead",
+    "wish i were dead",
+    "want to disappear",
+    "disappear forever",
+    "no reason to live",
+    "no reason to go on",
+]
 
 class PredictIn(BaseModel):
     text: List[str]
@@ -31,6 +49,7 @@ class PredictOutItem(BaseModel):
 
 _model = None
 _version = ""
+_bundle_labels = LABELS
 
 
 def softmax(x):
@@ -39,8 +58,38 @@ def softmax(x):
     return e / e.sum(axis=1, keepdims=True)
 
 
+def model_labels():
+    labels = getattr(_model, "classes_", None)
+    if labels is None:
+        return LABELS
+    return [str(label) for label in labels]
+
+
+def has_high_risk_phrase(text: str) -> bool:
+    normalized = " ".join(text.lower().split())
+    return any(phrase in normalized for phrase in HIGH_RISK_PHRASES)
+
+
+def apply_high_risk_override(text: str, probability_by_label: dict):
+    if not has_high_risk_phrase(text):
+        return probability_by_label
+
+    score = max(probability_by_label.get("RISK_HIGH", 0.0), 0.95)
+    remaining = max(1.0 - score, 0.0)
+    other_labels = [label for label in LABELS if label != "RISK_HIGH"]
+    other_total = sum(probability_by_label.get(label, 0.0) for label in other_labels)
+
+    adjusted = {"RISK_HIGH": score}
+    for label in other_labels:
+        if other_total > 0:
+            adjusted[label] = remaining * probability_by_label.get(label, 0.0) / other_total
+        else:
+            adjusted[label] = remaining / len(other_labels)
+    return adjusted
+
+
 def load_model():
-    global _model, _version
+    global _model, _version, _bundle_labels
     if _model is not None:
         return
     import joblib
@@ -48,6 +97,7 @@ def load_model():
     # If the bundle contains the model directly (common in some joblib dumps) or is a dict
     if isinstance(bundle, dict) and "model" in bundle:
         _model = bundle["model"]
+        _bundle_labels = [str(label) for label in bundle.get("labels", LABELS)]
     else:
         _model = bundle
         
@@ -56,6 +106,14 @@ def load_model():
             _version = f.read().strip()
     except Exception:
         _version = "unknown"
+
+
+def load_metrics():
+    try:
+        with open(METRICS_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
 
 
 @app.on_event("startup")
@@ -81,9 +139,24 @@ async def startup():
 async def health():
     try:
         load_model()
-        return {"ok": True, "version": _version}
+        return {
+            "ok": True,
+            "version": _version,
+            "model_labels": model_labels(),
+            "display_labels": _bundle_labels,
+            "metrics_available": load_metrics() is not None,
+        }
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+@app.get("/metrics")
+async def metrics():
+    load_model()
+    data = load_metrics()
+    if data is None:
+        return {"ok": False, "error": "metrics.json not found"}
+    return {"ok": True, "metrics": data}
 
 
 @app.get("/check-model")
@@ -97,10 +170,13 @@ async def check_model():
         "version": _version,
         "version_path": VERSION_PATH,
         "version_exists": os.path.exists(VERSION_PATH),
+        "metrics_path": METRICS_PATH,
+        "metrics_exists": os.path.exists(METRICS_PATH),
     }
     
     if _model is not None:
         result["model_type"] = str(type(_model).__name__)
+        result["model_labels"] = model_labels()
         try:
             # Check if TF-IDF is fitted
             result["tfidf_fitted"] = hasattr(_model.named_steps.get("tfidf"), "idf_")
@@ -123,14 +199,19 @@ async def predict(inp: PredictIn):
         # For models without predict_proba (e.g., LinearSVC), approximate via decision_function
         df = _model.decision_function(texts)
         probs = softmax(df)
-    preds = probs.argmax(axis=1)
+    labels = model_labels()
     out = []
-    for i, p in enumerate(preds):
+    for i, text in enumerate(texts):
+        probability_by_label = {
+            label: float(probs[i][idx]) for idx, label in enumerate(labels)
+        }
+        probability_by_label = apply_high_risk_override(text, probability_by_label)
+        risk_label = max(probability_by_label, key=probability_by_label.get)
         out.append(
             PredictOutItem(
-                risk_label=LABELS[int(p)],
-                risk_score=float(probs[i][int(p)]),
-                probs=[float(x) for x in probs[i]],
+                risk_label=risk_label,
+                risk_score=probability_by_label[risk_label],
+                probs=[probability_by_label.get(label, 0.0) for label in LABELS],
                 version=_version,
             )
         )

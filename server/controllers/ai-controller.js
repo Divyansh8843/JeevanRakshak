@@ -12,7 +12,7 @@ const { sendParentSMS } = require("../utils/sms");
 const { emitToUser } = require("../utils/socket");
 const PROJECT_NAME = process.env.PROJECT_NAME || "JeevanRakshak";
 const CLIENT_ORIGIN =
-  process.env.CLIENT_ORIGIN || process.env.CLIENT_URL || "w5173";
+  process.env.CLIENT_ORIGIN || process.env.CLIENT_URL || "http://localhost:5173";
 
 function riskBadge(risk) {
   const r = String(risk || "LOW").toUpperCase();
